@@ -5,7 +5,8 @@ namespace bensomething\landmark\controllers;
 use bensomething\landmark\fields\Map as MapField;
 use bensomething\landmark\models\Shape;
 use Craft;
-use craft\elements\db\ElementQueryInterface;
+use craft\db\Query;
+use craft\db\Table;
 use craft\elements\Entry;
 use craft\web\Controller;
 use yii\web\Response;
@@ -84,15 +85,23 @@ class ContextController extends Controller
             return $this->asJson(['options' => []]);
         }
 
-        $query = $field->normalizeValue(null, null);
+        // What this field actually relates to across the site. Asking the field itself
+        // gives an empty query, since there is no element to read a value from.
+        $targets = (new Query())
+            ->select(['targetId'])
+            ->distinct()
+            ->from(Table::RELATIONS)
+            ->where(['fieldId' => $field->id])
+            ->limit(500)
+            ->column();
 
-        if (!$query instanceof ElementQueryInterface) {
+        if ($targets === []) {
             return $this->asJson(['options' => []]);
         }
 
         $options = array_map(
             fn($element) => ['id' => $element->id, 'title' => (string)$element],
-            $query->status('live')->limit(200)->all()
+            Entry::find()->id($targets)->status(null)->orderBy(['title' => SORT_DESC])->limit(200)->all()
         );
 
         return $this->asJson(['options' => $options]);
