@@ -378,7 +378,7 @@
                 const bounds = this.layers.getBounds();
 
                 if (bounds.isValid()) {
-                    this.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 18 });
+                    this.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 18, animate: false });
                 }
             }
         }
