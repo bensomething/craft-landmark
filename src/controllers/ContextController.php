@@ -24,7 +24,7 @@ class ContextController extends Controller
         $uids = (array)$request->getBodyParam('sources', []);
         $relationUid = $request->getBodyParam('relation');
         $related = array_filter(array_map('intval', (array)$request->getBodyParam('related', [])));
-        $exclude = (int)$request->getBodyParam('exclude');
+        $exclude = array_map('intval', (array)$request->getBodyParam('exclude', []));
         $limit = min((int)$request->getBodyParam('limit', 250) ?: 250, 2000);
 
         $fields = Craft::$app->getFields();
@@ -49,7 +49,7 @@ class ContextController extends Controller
             }
 
             foreach ($query->all() as $entry) {
-                if ($entry->id === $exclude) {
+                if (in_array($entry->id, $exclude, true) || in_array($entry->getCanonicalId(), $exclude, true)) {
                     continue;
                 }
 

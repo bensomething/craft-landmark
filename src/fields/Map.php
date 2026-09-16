@@ -180,7 +180,11 @@ class Map extends Field
             'sources' => $sources,
             'relation' => $this->relationConfig($element),
             'limit' => $this->contextLimit,
-            'exclude' => $element?->id,
+            // A draft and the entry it belongs to have different ids, and neither should show as another entry
+            'exclude' => array_values(array_unique(array_filter([
+                $element?->id,
+                $element?->getCanonicalId(),
+            ]))),
         ];
     }
 
