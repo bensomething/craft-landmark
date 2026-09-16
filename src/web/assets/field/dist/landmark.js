@@ -257,14 +257,7 @@
             this.sources = {};
             this.hidden = {};
 
-            // A choice made here is kept for this field, so it holds from one entry to the next
-            const saved = this.readChoice();
-
-            if (saved === null) {
-                this.contextRelated = (context.relation && context.relation.selected) || [];
-            } else {
-                this.contextRelated = saved === '' ? [] : [Number(saved)];
-            }
+            this.contextRelated = this.startingRelated(context.relation);
 
             context.sources.forEach((source) => {
                 this.sources[source.uid] = [];
@@ -406,7 +399,11 @@
                             this.loadContext();
                         });
 
-                        this.fillRelationOptions(select, context.relation);
+                        if ((context.relation.options || []).length) {
+                            this.fillOptions(select, context.relation.options);
+                        } else {
+                            this.fillRelationOptions(select, context.relation);
+                        }
                     }
 
                     return box;
@@ -416,26 +413,37 @@
             this.map.addControl(new control());
         }
 
+        /**
+         * A choice is kept for this field, so it holds from one entry to the next, but only
+         * where this entry is offered it. Otherwise the entry's own relations stand.
+         */
+        startingRelated(relation) {
+            const saved = this.readChoice();
+            const options = (relation && relation.options) || [];
+            const offered = options.map((option) => String(option.id));
+
+            if (saved === null || (saved !== '' && options.length && !offered.includes(saved))) {
+                return (relation && relation.selected) || [];
+            }
+
+            return saved === '' ? [] : [Number(saved)];
+        }
+
+        fillOptions(select, options) {
+            options.forEach((option) => {
+                const el = document.createElement('option');
+
+                el.value = option.id;
+                el.textContent = option.title;
+                select.appendChild(el);
+            });
+
+            select.value = this.contextRelated.length === 1 ? String(this.contextRelated[0]) : '';
+        }
+
         fillRelationOptions(select, relation) {
             Craft.sendActionRequest('POST', 'landmark/context/options', { data: { relation: relation.uid } })
-                .then((response) => {
-                    const options = (response.data && response.data.options) || [];
-
-                    options.forEach((option) => {
-                        const el = document.createElement('option');
-
-                        el.value = option.id;
-                        el.textContent = option.title;
-                        el.selected = this.contextRelated.includes(option.id);
-                        select.appendChild(el);
-                    });
-
-                    const saved = this.readChoice();
-
-                    if (saved !== null) {
-                        select.value = saved;
-                    }
-                })
+                .then((response) => this.fillOptions(select, (response.data && response.data.options) || []))
                 .catch(() => {});
         }
 

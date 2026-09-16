@@ -218,15 +218,25 @@ class Map extends Field
             }
         }
 
+        $options = [];
+
         if ($instance !== null) {
             $value = $element->getFieldValue($instance->handle);
-            $selected = $value instanceof ElementQueryInterface ? $value->ids() : [];
+
+            if ($value instanceof ElementQueryInterface) {
+                // Only what this entry is related to, so a block can't sit on a year it isn't in
+                foreach ($value->limit(200)->all() as $related) {
+                    $selected[] = $related->id;
+                    $options[] = ['id' => $related->id, 'title' => (string)$related];
+                }
+            }
         }
 
         return [
             'uid' => $this->contextRelation,
-            'label' => $field->name,
+            'label' => $instance?->name ?? $field->name,
             'selected' => $selected,
+            'options' => $options,
         ];
     }
 
