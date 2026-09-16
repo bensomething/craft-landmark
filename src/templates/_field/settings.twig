@@ -1,0 +1,60 @@
+{% import "_includes/forms.twig" as forms %}
+
+{{ forms.checkboxGroupField({
+    label: 'Tools'|t('landmark'),
+    instructions: 'What can be drawn in this field.'|t('landmark'),
+    id: 'shapes',
+    name: 'shapes',
+    values: field.shapes,
+    options: [
+        { label: 'Marker'|t('landmark'), value: 'marker' },
+        { label: 'Line'|t('landmark'), value: 'line' },
+        { label: 'Shape'|t('landmark'), value: 'polygon' },
+    ],
+    required: true,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Allow More Than One'|t('landmark'),
+    instructions: 'Save several shapes together, as a multi-part geometry.'|t('landmark'),
+    id: 'allowMultiple',
+    name: 'allowMultiple',
+    on: field.allowMultiple,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Latitude'|t('landmark'),
+    instructions: 'Where this field’s map opens, before anything is drawn. Leave blank to use the plugin’s setting.'|t('landmark'),
+    id: 'defaultLat',
+    name: 'defaultLat',
+    value: field.defaultLat,
+    size: 12,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Longitude'|t('landmark'),
+    id: 'defaultLng',
+    name: 'defaultLng',
+    value: field.defaultLng,
+    size: 12,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Zoom'|t('landmark'),
+    id: 'defaultZoom',
+    name: 'defaultZoom',
+    value: field.defaultZoom,
+    type: 'number',
+    size: 4,
+}) }}
+
+{{ forms.textField({
+    label: 'Map Height'|t('landmark'),
+    instructions: 'In pixels. Leave blank to use the plugin’s setting.'|t('landmark'),
+    id: 'height',
+    name: 'height',
+    value: field.height,
+    type: 'number',
+    size: 5,
+    unit: 'px'|t('landmark'),
+}) }}
