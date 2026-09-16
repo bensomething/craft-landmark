@@ -44,6 +44,11 @@
     background-image: none;
 }
 
+/* Leaflet hides the toggle once the list is open, and the sizing above would undo that */
+.leaflet-control-layers-expanded .landmark-layers-toggle {
+    display: none;
+}
+
 .landmark-code-control a.is-on {
     background-color: var(--gray-200);
 }
