@@ -386,7 +386,8 @@
                         L.DomUtil.create('span', '', row).textContent = source.label;
                     });
 
-                    if (context.relation) {
+                    // One year is no choice, so the picker is left out
+                    if (context.relation && (context.relation.options || []).length !== 1) {
                         const row = L.DomUtil.create('label', 'landmark-context-relation', box);
 
                         L.DomUtil.create('span', '', row).textContent = context.relation.label;
@@ -421,6 +422,11 @@
             const saved = this.readChoice();
             const options = (relation && relation.options) || [];
             const offered = options.map((option) => String(option.id));
+
+            // Nothing is on offer with one year, so a choice made elsewhere doesn't apply
+            if (options.length === 1) {
+                return relation.selected || [];
+            }
 
             if (saved === null || (saved !== '' && options.length && !offered.includes(saved))) {
                 return (relation && relation.selected) || [];
