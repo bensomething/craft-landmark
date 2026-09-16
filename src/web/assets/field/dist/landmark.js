@@ -153,7 +153,19 @@
                         maxNativeZoom: 20,
                     });
 
-                    const layers = L.control.layers({
+                    // The radios are kept out of the entry form. They appear after Craft
+                    // has read it, which it would otherwise save as an unsaved change.
+                    const Layers = L.Control.Layers.extend({
+                        _createRadioElement(name, checked) {
+                            const input = L.Control.Layers.prototype._createRadioElement.call(this, name, checked);
+
+                            input.setAttribute('form', 'landmark-detached');
+
+                            return input;
+                        },
+                    });
+
+                    const layers = new Layers({
                         Map: this.basemap,
                         Satellite: satellite,
                     }, null, { position: 'topright' }).addTo(this.map);
