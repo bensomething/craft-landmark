@@ -183,6 +183,11 @@
         initCodePanel() {
             this.map.getContainer().appendChild(this.panel);
 
+            // The panel sits inside the map container, which would otherwise take
+            // its wheel as a zoom and its text selection as a drag
+            L.DomEvent.disableScrollPropagation(this.panel);
+            L.DomEvent.disableClickPropagation(this.panel);
+
             const button = L.Control.extend({
                 options: { position: 'topright' },
                 onAdd: () => {
@@ -224,7 +229,6 @@
             if (!this.editor && typeof CodeMirror !== 'undefined') {
                 this.editor = CodeMirror.fromTextArea(this.textarea, {
                     mode: { name: 'javascript', json: true },
-                    viewportMargin: Infinity,
                     lineWrapping: true,
                 });
                 this.editor.on('change', (editor) => {

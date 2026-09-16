@@ -75,10 +75,12 @@
 }
 
 /* Fills the panel exactly, so switching views doesn't shift anything.
+   A definite height keeps long values scrolling inside the editor.
    Craft's focus ring is left alone, so it still shows while editing. */
 .landmark-code .CodeMirror {
     flex: 1;
-    height: auto;
+    min-height: 0;
+    height: 100%;
     margin: 0;
     border: 0;
     border-radius: 0;
