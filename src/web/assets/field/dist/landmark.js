@@ -158,6 +158,13 @@
                         Satellite: satellite,
                     }, null, { position: 'topright' }).addTo(this.map);
 
+                    if (this.remembered('basemap') === 'Satellite') {
+                        this.map.removeLayer(this.basemap);
+                        this.map.addLayer(satellite);
+                    }
+
+                    this.map.on('baselayerchange', (e) => this.remember('basemap', e.name));
+
                     const toggle = layers.getContainer().querySelector('.leaflet-control-layers-toggle');
 
                     if (toggle) {
@@ -246,9 +253,18 @@
                 return;
             }
 
-            this.contextRelated = (context.relation && context.relation.selected) || [];
+            this.contextKey = context.relation ? context.relation.uid : null;
             this.sources = {};
             this.hidden = {};
+
+            // A choice made here is kept for this field, so it holds from one entry to the next
+            const saved = this.readChoice();
+
+            if (saved === null) {
+                this.contextRelated = (context.relation && context.relation.selected) || [];
+            } else {
+                this.contextRelated = saved === '' ? [] : [Number(saved)];
+            }
 
             context.sources.forEach((source) => {
                 this.sources[source.uid] = [];
@@ -315,6 +331,33 @@
                 });
         }
 
+        /** What this field remembers between entries, kept under its own name. */
+        remembered(what) {
+            try {
+                return window.localStorage.getItem(`landmark:${this.config.name}:${what}`);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        remember(what, value) {
+            try {
+                window.localStorage.setItem(`landmark:${this.config.name}:${what}`, value);
+            } catch (e) {
+                // Storage can be turned off, in which case the choice lasts for this page only
+            }
+        }
+
+        readChoice() {
+            return this.contextKey ? this.remembered(this.contextKey) : null;
+        }
+
+        writeChoice(value) {
+            if (this.contextKey) {
+                this.remember(this.contextKey, value);
+            }
+        }
+
         clearContext() {
             Object.values(this.sources).forEach((layers) => {
                 layers.forEach((layer) => this.map.removeLayer(layer));
@@ -359,6 +402,7 @@
                         select.innerHTML = '<option value="">' + Craft.t('landmark', 'All') + '</option>';
                         select.addEventListener('change', () => {
                             this.contextRelated = select.value ? [Number(select.value)] : [];
+                            this.writeChoice(select.value);
                             this.loadContext();
                         });
 
@@ -385,6 +429,12 @@
                         el.selected = this.contextRelated.includes(option.id);
                         select.appendChild(el);
                     });
+
+                    const saved = this.readChoice();
+
+                    if (saved !== null) {
+                        select.value = saved;
+                    }
                 })
                 .catch(() => {});
         }
