@@ -83,6 +83,7 @@
                     });
                 }
                 this.layers.addLayer(e.layer);
+                this.preview(e.layer, {});
                 this.watch(e.layer);
                 this.sync();
             });
@@ -476,18 +477,29 @@
                 return;
             }
 
-            // A collection arrives as one nested layer, so its shapes are unpacked to stay editable
-            const unpack = (layer) => {
+            // Shapes are drawn one at a time so a collection stays editable and each
+            // keeps whatever was written against it
+            const unpack = (layer, extras) => {
                 if (layer.getLayers) {
-                    layer.getLayers().forEach(unpack);
+                    layer.getLayers().forEach((child) => unpack(child, extras));
                     return;
                 }
+
+                if (Object.keys(extras).length) {
+                    layer.landmarkExtras = extras;
+                }
+
+                this.preview(layer, extras);
 
                 this.layers.addLayer(layer);
                 this.watch(layer);
             };
 
-            L.geoJSON(geometry).getLayers().forEach(unpack);
+            const shapes = geometry.type === 'GeometryCollection' ? geometry.geometries : [geometry];
+
+            shapes.forEach((shape) => {
+                L.geoJSON(shape).getLayers().forEach((layer) => unpack(layer, this.extras(shape)));
+            });
 
             if (fit && this.layers.getLayers().length) {
                 const bounds = this.layers.getBounds();
@@ -528,22 +540,68 @@
             this.setError('');
         }
 
-        geometry() {
-            const features = this.layers.toGeoJSON().features || [];
+        /**
+         * Anything written against a shape beyond its geometry. GeoJSON allows these,
+         * and they are kept as typed: what they mean is for the front end to decide.
+         */
+        extras(shape) {
+            const keep = {};
 
-            if (!features.length) {
+            Object.keys(shape).forEach((key) => {
+                if (key !== 'type' && key !== 'coordinates' && key !== 'geometries') {
+                    keep[key] = shape[key];
+                }
+            });
+
+            return keep;
+        }
+
+        /** Colour and opacity are shown while editing, so the field matches the front end. */
+        preview(layer, extras) {
+            if (!layer.setStyle) {
+                return;
+            }
+
+            const style = {};
+            const opacity = extras.opacity != null ? extras.opacity : this.config.opacity;
+
+            if (opacity != null) {
+                style.fillOpacity = opacity;
+            }
+
+            if (extras.colour) {
+                style.color = extras.colour;
+                style.fillColor = extras.colour;
+            }
+
+            if (Object.keys(style).length) {
+                layer.setStyle(style);
+            }
+        }
+
+        geometry() {
+            const layers = this.layers.getLayers();
+
+            if (!layers.length) {
                 return null;
             }
 
-            if (features.length === 1) {
-                return features[0].geometry;
+            const geometries = layers.map((layer) => {
+                const geometry = layer.toGeoJSON().geometry;
+
+                return layer.landmarkExtras ? Object.assign(geometry, layer.landmarkExtras) : geometry;
+            });
+
+            if (geometries.length === 1) {
+                return geometries[0];
             }
 
-            const geometries = features.map((f) => f.geometry);
             const types = geometries.map((g) => g.type);
+            const styled = layers.some((layer) => layer.landmarkExtras);
 
-            // Shapes of one kind collapse into a Multi, a mix is kept as a collection
-            if (types.every((type) => type === types[0])) {
+            // Shapes of one kind collapse into a Multi, unless one carries its own
+            // keys, which a single geometry has nowhere to keep
+            if (!styled && types.every((type) => type === types[0])) {
                 return {
                     type: 'Multi' + types[0],
                     coordinates: geometries.map((g) => g.coordinates),

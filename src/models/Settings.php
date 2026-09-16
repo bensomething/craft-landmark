@@ -35,6 +35,9 @@ class Settings extends Model
 
     public int $height = 420;
 
+    /** How solid a shape is drawn, unless it carries an opacity of its own. */
+    public float $shapeOpacity = 0.1;
+
     public const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
     public const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
     public const CARTO_URL = 'https://{s}.basemaps.cartocdn.com/%s/{z}/{x}/{y}{r}.png';
@@ -63,6 +66,7 @@ class Settings extends Model
             [['defaultLng'], 'number', 'min' => -180, 'max' => 180],
             [['defaultZoom'], 'integer', 'min' => 0, 'max' => 22],
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
+            [['shapeOpacity'], 'number', 'min' => 0, 'max' => 1],
         ];
     }
 
@@ -129,6 +133,7 @@ class Settings extends Model
             'defaultLng' => Craft::t('landmark', 'Default Longitude'),
             'defaultZoom' => Craft::t('landmark', 'Default Zoom'),
             'height' => Craft::t('landmark', 'Map Height'),
+            'shapeOpacity' => Craft::t('landmark', 'Shape Opacity'),
         ];
     }
 }

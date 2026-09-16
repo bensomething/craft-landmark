@@ -122,6 +122,7 @@ class Map extends Field
                 $this->defaultLng ?? $settings->defaultLng,
             ],
             'zoom' => $this->defaultZoom ?? $settings->defaultZoom,
+            'opacity' => $settings->shapeOpacity,
             'context' => $this->contextConfig($element),
             'icons' => [
                 'code' => Cp::iconSvg('code'),

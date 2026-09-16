@@ -62,6 +62,16 @@ L.marker([{{ entry.pin.lat }}, {{ entry.pin.lng }}]).addTo(map);
 {% if entry.area.isEmpty %}Nothing drawn yet{% endif %}
 ```
 
+### Keys on a shape
+
+Anything written against a shape in the field's GeoJSON view is kept through editing and saving:
+
+```json
+{ "type": "Polygon", "coordinates": [[ ]], "opacity": 1, "colour": "#f56565" }
+```
+
+The field previews `colour` and `opacity` while editing. What any of it means on the front end is for your template to decide.
+
 ## Licence
 
 MIT
