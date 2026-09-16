@@ -51,6 +51,7 @@
             }).addTo(this.map);
 
             this.layers = L.featureGroup().addTo(this.map);
+            this.watchSize();
             this.draw(c.geometry, true);
 
             if (!this.map.pm) {
@@ -98,6 +99,32 @@
             const icons = this.config.icons || {};
 
             return icons[name] || { code: '&lt;/&gt;', map: '&#9723;', layers: '&#9776;' }[name] || '';
+        }
+
+        /**
+         * A map started inside a closed tab or a collapsed block measures itself as tiny,
+         * so it is told to measure again once it can be seen, and whenever it is resized.
+         */
+        watchSize() {
+            const container = this.map.getContainer();
+
+            new IntersectionObserver((entries, observer) => {
+                if (entries[0].intersectionRatio === 0) {
+                    return;
+                }
+
+                observer.disconnect();
+                this.map.invalidateSize(false);
+
+                if (this.pendingFit) {
+                    this.map.fitBounds(this.pendingFit, { padding: [20, 20], maxZoom: 18, animate: false });
+                    this.pendingFit = null;
+                }
+            }).observe(container);
+
+            if (typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(() => this.map.invalidateSize(false)).observe(container);
+            }
         }
 
         drawTools() {
@@ -386,7 +413,12 @@
                 const bounds = this.layers.getBounds();
 
                 if (bounds.isValid()) {
-                    this.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 18, animate: false });
+                    // Fitting a map that cannot be seen yet gets the wrong zoom, so it waits
+                    if (this.map.getContainer().offsetParent === null) {
+                        this.pendingFit = bounds;
+                    } else {
+                        this.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 18, animate: false });
+                    }
                 }
             }
         }
