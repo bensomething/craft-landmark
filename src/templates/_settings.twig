@@ -82,6 +82,14 @@
     placeholder: '$GOOGLE_MAPS_API_KEY',
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Esri World Imagery'|t('landmark'),
+    instructions: 'Adds Esri’s satellite imagery to every field’s layer switcher. It needs no key, but Esri’s terms and attribution apply.'|t('landmark'),
+    id: 'esriImagery',
+    name: 'esriImagery',
+    on: settings.esriImagery,
+}) }}
+
 {{ forms.textField({
     label: 'Default Latitude'|t('landmark'),
     instructions: 'Where a map opens before anything is drawn.'|t('landmark'),

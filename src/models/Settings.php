@@ -29,6 +29,9 @@ class Settings extends Model
     /** Google key with the Map Tiles API enabled. Empty means no satellite layer. */
     public string $googleApiKey = '';
 
+    /** Offers Esri's World Imagery in every field's layer switcher. It needs no key. */
+    public bool $esriImagery = false;
+
     public float $defaultLat = 51.1533;
     public float $defaultLng = -2.5886;
     public int $defaultZoom = 14;
@@ -129,6 +132,7 @@ class Settings extends Model
             'customApiKey' => Craft::t('landmark', 'API Key'),
             'customAttribution' => Craft::t('landmark', 'Attribution'),
             'googleApiKey' => Craft::t('landmark', 'Google Maps API Key'),
+            'esriImagery' => Craft::t('landmark', 'Esri World Imagery'),
             'defaultLat' => Craft::t('landmark', 'Default Latitude'),
             'defaultLng' => Craft::t('landmark', 'Default Longitude'),
             'defaultZoom' => Craft::t('landmark', 'Default Zoom'),

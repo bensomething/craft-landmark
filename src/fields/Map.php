@@ -142,6 +142,7 @@ class Map extends Field
             'basemapUrl' => $settings->tileUrl(),
             'basemapAttribution' => $settings->attribution(),
             'hasSatellite' => $settings->resolvedGoogleApiKey() !== null,
+            'esriImagery' => $settings->esriImagery,
             'centre' => [
                 $this->defaultLat ?? $settings->defaultLat,
                 $this->defaultLng ?? $settings->defaultLng,
