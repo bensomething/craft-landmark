@@ -13,6 +13,7 @@ use craft\elements\db\EntryQuery;
 use craft\elements\Entry;
 use craft\fields\Matrix;
 use craft\models\FieldLayout;
+use craft\validators\ColorValidator;
 use craft\helpers\Cp;
 use craft\helpers\Json;
 use yii\db\Schema;
@@ -36,6 +37,9 @@ class Map extends Field
      * `fieldUid:sectionUid` for only that field's entries in one section.
      */
     public array $contextFields = [];
+
+    /** @var array<string, string> A colour for each source, by its UID. A source without one takes the next in the palette. */
+    public array $contextColours = [];
 
     /**
      * @var string[] UIDs of relation fields entries can share, so only matching entries are shown.
@@ -62,6 +66,21 @@ class Map extends Field
             if (array_key_exists($key, $config)) {
                 $config[$key] = array_values(array_filter((array)$config[$key]));
             }
+        }
+
+        // Craft's colour input posts hex without its #, and a blank one falls back to the palette
+        if (array_key_exists('contextColours', $config)) {
+            $colours = [];
+
+            foreach (is_array($config['contextColours']) ? $config['contextColours'] : [] as $source => $colour) {
+                $colour = is_string($colour) ? trim($colour) : '';
+
+                if ($colour !== '' && preg_match('/^#[0-9a-f]{6}$/', $colour = ColorValidator::normalizeColor($colour))) {
+                    $colours[$source] = $colour;
+                }
+            }
+
+            $config['contextColours'] = $colours;
         }
 
         parent::__construct($config);
@@ -311,7 +330,7 @@ class Map extends Field
                     'uid' => $uid,
                     // A section's own shapes are named for the section
                     'label' => $section->name ?? $field->name,
-                    'colour' => $colours[$i % count($colours)],
+                    'colour' => $this->contextColours[$uid] ?? $colours[$i % count($colours)],
                 ];
             }
         }

@@ -59,14 +59,36 @@
 
 <hr>
 
-{{ forms.checkboxGroupField({
+{% set sourceRows %}
+    {# Posts an empty value when nothing is ticked, so the setting can be cleared #}
+    {{ hiddenInput('contextFields', '') }}
+    <div class="flex flex-col gap-s">
+        {% for option in sourceOptions %}
+            <div class="flex flex-nowrap items-center gap-s">
+                <div class="flex-grow">
+                    {{ forms.checkbox({
+                        label: option.label,
+                        name: 'contextFields[]',
+                        value: option.value,
+                        checked: option.value in field.contextFields,
+                    }) }}
+                </div>
+                {{ forms.color({
+                    id: 'contextColour' ~ loop.index,
+                    name: 'contextColours[' ~ option.value ~ ']',
+                    value: field.contextColours[option.value] ?? '',
+                    small: true,
+                }) }}
+            </div>
+        {% endfor %}
+    </div>
+{% endset %}
+
+{{ forms.field({
     label: 'Show Shapes From'|t('landmark'),
-    instructions: 'Other entries\' shapes are drawn behind this field\'s own, so you can line things up. They can\'t be edited here. A section picked on its own gets its own toggle, and is left out of the whole field\'s.'|t('landmark'),
+    instructions: 'Other entries\' shapes are drawn behind this field\'s own, so you can line things up. They can\'t be edited here. A section picked on its own gets its own toggle, and is left out of the whole field\'s. Leave a colour blank to have one picked.'|t('landmark'),
     id: 'contextFields',
-    name: 'contextFields',
-    values: field.contextFields,
-    options: sourceOptions,
-}) }}
+}, sourceRows) }}
 
 {{ forms.checkboxGroupField({
     label: 'Only From Entries Sharing'|t('landmark'),
