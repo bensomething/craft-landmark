@@ -61,6 +61,33 @@ class ShapeTest extends TestCase
         $this->assertNull($shape->getLng());
     }
 
+    public function testKeepsAMixOfShapesAsACollection(): void
+    {
+        $geometry = [
+            'type' => 'GeometryCollection',
+            'geometries' => [
+                ['type' => 'Point', 'coordinates' => [-2.58, 51.14]],
+                ['type' => 'Polygon', 'coordinates' => [[[-2.58, 51.14], [-2.57, 51.14], [-2.58, 51.14]]]],
+            ],
+        ];
+        $shape = new Shape($geometry);
+
+        $this->assertFalse($shape->getIsEmpty());
+        $this->assertSame('GeometryCollection', $shape->getType());
+        $this->assertCount(2, $shape->getGeometries());
+        $this->assertNull($shape->getCoordinates());
+        $this->assertNull($shape->getLat());
+        $this->assertSame($geometry, $shape->feature()['geometry']);
+    }
+
+    public function testGeometriesReturnsASingleShapeOnItsOwn(): void
+    {
+        $point = ['type' => 'Point', 'coordinates' => [-2.58, 51.14]];
+
+        $this->assertSame([$point], (new Shape($point))->getGeometries());
+        $this->assertSame([], (new Shape())->getGeometries());
+    }
+
     public function testFeatureWrapsGeometryWithProperties(): void
     {
         $geometry = ['type' => 'Point', 'coordinates' => [-2.58, 51.14]];

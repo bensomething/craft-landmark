@@ -369,10 +369,18 @@
                 return;
             }
 
-            L.geoJSON(geometry).eachLayer((layer) => {
+            // A collection arrives as one nested layer, so its shapes are unpacked to stay editable
+            const unpack = (layer) => {
+                if (layer.getLayers) {
+                    layer.getLayers().forEach(unpack);
+                    return;
+                }
+
                 this.layers.addLayer(layer);
                 this.watch(layer);
-            });
+            };
+
+            L.geoJSON(geometry).getLayers().forEach(unpack);
 
             if (fit && this.layers.getLayers().length) {
                 const bounds = this.layers.getBounds();
@@ -419,17 +427,18 @@
                 return features[0].geometry;
             }
 
-            const types = features.map((f) => f.geometry.type);
-            const multi = types.every((t) => t === types[0]) ? 'Multi' + types[0] : null;
+            const geometries = features.map((f) => f.geometry);
+            const types = geometries.map((g) => g.type);
 
-            if (!multi) {
-                return features[0].geometry;
+            // Shapes of one kind collapse into a Multi, a mix is kept as a collection
+            if (types.every((type) => type === types[0])) {
+                return {
+                    type: 'Multi' + types[0],
+                    coordinates: geometries.map((g) => g.coordinates),
+                };
             }
 
-            return {
-                type: multi,
-                coordinates: features.map((f) => f.geometry.coordinates),
-            };
+            return { type: 'GeometryCollection', geometries: geometries };
         }
 
         /**
@@ -462,7 +471,7 @@
                 return;
             }
 
-            if (!this.allows(geometry.type)) {
+            if (!this.allows(geometry.type, geometry)) {
                 this.setError(Craft.t('landmark', 'This field doesn’t accept {type}.', { type: geometry.type }));
                 return;
             }
@@ -473,7 +482,11 @@
             this.input.value = JSON.stringify(geometry);
         }
 
-        allows(type) {
+        allows(type, geometry) {
+            if (type === 'GeometryCollection') {
+                return (geometry.geometries || []).every((g) => this.allows(g.type, g));
+            }
+
             return (this.config.shapes || []).some((shape) => (ALLOWED[shape] || []).includes(type));
         }
 
@@ -496,7 +509,7 @@
             return parsed.geometry || null;
         }
 
-        return parsed.coordinates ? parsed : null;
+        return parsed.coordinates || parsed.geometries ? parsed : null;
     }
 
     window.Landmark = window.Landmark || {};

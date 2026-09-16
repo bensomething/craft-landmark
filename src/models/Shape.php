@@ -53,6 +53,22 @@ class Shape implements Stringable
         return $this->geometry !== null ? Json::encode($this->geometry) : null;
     }
 
+    /**
+     * The shapes in a collection, or just this one.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getGeometries(): array
+    {
+        if ($this->geometry === null) {
+            return [];
+        }
+
+        return $this->getType() === 'GeometryCollection'
+            ? array_values($this->geometry['geometries'])
+            : [$this->geometry];
+    }
+
     /** Laid out over several lines, for the field's GeoJSON panel. */
     public function getPrettyGeoJson(): ?string
     {
@@ -68,6 +84,7 @@ class Shape implements Stringable
     {
         $coordinates = $this->geometry['coordinates'] ?? null;
 
+        // A collection holds shapes of different kinds, so there is no single list of points
         if ($coordinates === null) {
             return null;
         }
@@ -104,9 +121,14 @@ class Shape implements Stringable
     /** @param array<string, mixed>|null $geometry */
     private function isGeometry(?array $geometry): bool
     {
-        return isset($geometry['type'], $geometry['coordinates'])
-            && is_string($geometry['type'])
-            && is_array($geometry['coordinates'])
-            && $geometry['coordinates'] !== [];
+        if (!isset($geometry['type']) || !is_string($geometry['type'])) {
+            return false;
+        }
+
+        $points = $geometry['type'] === 'GeometryCollection'
+            ? ($geometry['geometries'] ?? null)
+            : ($geometry['coordinates'] ?? null);
+
+        return is_array($points) && $points !== [];
     }
 }
