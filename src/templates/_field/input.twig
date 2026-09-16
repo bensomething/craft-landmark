@@ -1,0 +1,12 @@
+{# The map and the GeoJSON panel edit the same hidden value. #}
+<div id="{{ id }}" class="landmark-field" style="--landmark-height: {{ height }}px;">
+    <div class="landmark-map"></div>
+
+    <div class="landmark-code" hidden>
+        <textarea id="{{ id }}-json" class="landmark-json" spellcheck="false"
+                  aria-label="{{ 'GeoJSON'|t('landmark') }}">{{ value.prettyGeoJson }}</textarea>
+        <p class="landmark-error" hidden></p>
+    </div>
+
+    <input type="hidden" name="{{ name }}" class="landmark-value" value="{{ value.geoJson }}">
+</div>

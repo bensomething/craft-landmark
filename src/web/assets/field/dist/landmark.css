@@ -1,0 +1,105 @@
+.landmark-field {
+    --landmark-height: 420px;
+
+    position: relative;
+}
+
+.landmark-map {
+    height: var(--landmark-height);
+    border-radius: var(--large-border-radius);
+    border: 1px solid var(--hairline-color);
+    overflow: hidden;
+    z-index: 0;
+}
+
+/* Leaflet's own panes sit above Craft's slideouts without this */
+.landmark-map .leaflet-pane {
+    z-index: 1;
+}
+
+/* Above the GeoJSON panel, so the controls stay usable while it is open */
+.landmark-map .leaflet-top,
+.landmark-map .leaflet-bottom {
+    z-index: 3;
+}
+
+.landmark-code-control a,
+.leaflet-control-layers .landmark-layers-toggle {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    font: 600 13px/1 var(--mono-font);
+}
+
+.landmark-code-control a svg,
+.landmark-layers-toggle svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Leaflet draws its own layers icon as a background image, with a retina rule of its own */
+.leaflet-control-layers .landmark-layers-toggle,
+.leaflet-retina .landmark-layers-toggle {
+    background-image: none;
+}
+
+.landmark-code-control a.is-on {
+    background-color: var(--gray-200);
+}
+
+/* Covers the map, leaving the controls above it */
+.landmark-code {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--white);
+}
+
+.landmark-code[hidden] {
+    display: none;
+}
+
+/* Only the view button stays while the JSON is open */
+.landmark-editing .leaflet-top.leaflet-left,
+.landmark-editing .leaflet-control-layers,
+.landmark-editing .leaflet-bottom {
+    display: none;
+}
+
+/* Fills the panel exactly, so switching views doesn't shift anything.
+   Craft's focus ring is left alone, so it still shows while editing. */
+.landmark-code .CodeMirror {
+    flex: 1;
+    height: auto;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    font-size: 12px;
+}
+
+.landmark-code .CodeMirror-lines {
+    padding: 14px 16px;
+}
+
+.landmark-json {
+    flex: 1;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 14px 16px;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    font-family: var(--mono-font);
+    font-size: 12px;
+    resize: none;
+}
+
+.landmark-error {
+    margin: 0;
+    padding: 6px 10px;
+    color: var(--error-color);
+    font-size: 12px;
+}
