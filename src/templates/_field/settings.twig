@@ -2,15 +2,17 @@
 
 {% set landmarkFieldOptions = [] %}
 {% for f in craft.app.fields.getFieldsByType('bensomething\\landmark\\fields\\Map') %}
-    {% set landmarkFieldOptions = landmarkFieldOptions|merge([{ label: f.name, value: f.uid }]) %}
+    {% set landmarkFieldOptions = landmarkFieldOptions|merge([{ label: f.name ~ ' (' ~ f.handle ~ ')', value: f.uid }]) %}
 {% endfor %}
 
+{# Labelled with the handle too: a field can be renamed per layout, and two can share a handle #}
 {% set relationFieldOptions = [{ label: 'None'|t('landmark'), value: '' }] %}
 {% for type in ['craft\\fields\\Entries', 'craft\\fields\\Categories'] %}
     {% for f in craft.app.fields.getFieldsByType(type) %}
-        {% set relationFieldOptions = relationFieldOptions|merge([{ label: f.name, value: f.uid }]) %}
+        {% set relationFieldOptions = relationFieldOptions|merge([{ label: f.name ~ ' (' ~ f.handle ~ ')', value: f.uid }]) %}
     {% endfor %}
 {% endfor %}
+{% set relationFieldOptions = relationFieldOptions|sort((a, b) => a.label <=> b.label) %}
 
 {{ forms.checkboxGroupField({
     label: 'Tools'|t('landmark'),
