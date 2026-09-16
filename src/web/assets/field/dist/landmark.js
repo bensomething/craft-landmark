@@ -219,12 +219,12 @@
                 return;
             }
 
-            this.context = L.layerGroup().addTo(this.map);
             this.contextRelated = (context.relation && context.relation.selected) || [];
             this.sources = {};
+            this.hidden = {};
 
             context.sources.forEach((source) => {
-                this.sources[source.uid] = L.featureGroup().addTo(this.context);
+                this.sources[source.uid] = [];
             });
 
             this.addContextControl(context);
@@ -246,30 +246,53 @@
                 .then((response) => {
                     const features = (response.data && response.data.features) || [];
 
-                    Object.values(this.sources).forEach((group) => group.clearLayers());
+                    this.clearContext();
 
                     features.forEach((feature) => {
                         const source = context.sources.find((s) => s.uid === feature.properties.source);
-                        const group = source && this.sources[source.uid];
 
-                        if (!group) {
+                        if (!source || !this.sources[source.uid]) {
                             return;
                         }
 
+                        // pmIgnore keeps them out of editing, snapIgnore false keeps them as snap targets
                         L.geoJSON(feature, {
                             pmIgnore: true,
+                            snapIgnore: false,
                             interactive: true,
                             renderer: L.canvas(),
                             style: { color: source.colour, weight: 1, fillOpacity: 0.08, opacity: 0.6 },
-                            pointToLayer: (point, latlng) => L.circleMarker(latlng, { radius: 4, color: source.colour, weight: 1, fillOpacity: 0.4 }),
+                            pointToLayer: (point, latlng) => L.circleMarker(latlng, {
+                                radius: 4,
+                                pmIgnore: true,
+                                snapIgnore: false,
+                                color: source.colour,
+                                weight: 1,
+                                fillOpacity: 0.4,
+                            }),
                         })
-                            .bindTooltip(feature.properties.title || source.label, { direction: 'top', sticky: true })
-                            .addTo(group);
+                            // Geoman only snaps to layers on the map itself, not to those inside groups
+                            .getLayers()
+                            .forEach((layer) => {
+                                layer.bindTooltip(feature.properties.title || source.label, { direction: 'top', sticky: true });
+                                this.sources[source.uid].push(layer);
+
+                                if (!this.hidden[source.uid]) {
+                                    layer.addTo(this.map);
+                                }
+                            });
                     });
                 })
                 .catch((e) => {
                     console.warn('Landmark: could not load other shapes.', e);
                 });
+        }
+
+        clearContext() {
+            Object.values(this.sources).forEach((layers) => {
+                layers.forEach((layer) => this.map.removeLayer(layer));
+                layers.length = 0;
+            });
         }
 
         addContextControl(context) {
@@ -288,8 +311,10 @@
                         tick.type = 'checkbox';
                         tick.checked = true;
                         tick.addEventListener('change', () => {
-                            const group = this.sources[source.uid];
-                            tick.checked ? this.context.addLayer(group) : this.context.removeLayer(group);
+                            this.hidden[source.uid] = !tick.checked;
+                            this.sources[source.uid].forEach((layer) => {
+                                tick.checked ? layer.addTo(this.map) : this.map.removeLayer(layer);
+                            });
                         });
 
                         const swatch = L.DomUtil.create('span', 'landmark-context-swatch', row);

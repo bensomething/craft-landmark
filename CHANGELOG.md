@@ -8,4 +8,4 @@
 - A Coordinates view for typing or pasting points.
 - An optional Google satellite layer.
 - A basemap picker: OpenStreetMap, CARTO styles with an API key, or any other tile URL.
-- Other entries' shapes can be drawn behind a field's own, filtered by a shared relation.
+- Other entries' shapes can be drawn behind a field's own, filtered by a shared relation. New shapes snap to them.
