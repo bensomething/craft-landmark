@@ -9,6 +9,10 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\elements\db\ElementQueryInterface;
+use craft\elements\db\EntryQuery;
+use craft\elements\Entry;
+use craft\fields\Matrix;
+use craft\models\FieldLayout;
 use craft\helpers\Cp;
 use craft\helpers\Json;
 use yii\db\Schema;
@@ -27,7 +31,10 @@ class Map extends Field
 
     public ?int $height = null;
 
-    /** @var string[] UIDs of Landmark fields whose shapes are drawn behind this one */
+    /**
+     * @var string[] Sources of shapes drawn behind this field's own: a Landmark field's UID, or
+     * `fieldUid:sectionUid` for only that field's entries in one section.
+     */
     public array $contextFields = [];
 
     /**
@@ -92,6 +99,112 @@ class Map extends Field
         ]);
     }
 
+    /**
+     * The entries with shapes for one source, and the handle to read them by. A whole field leaves
+     * out the sections that have a source of their own, so no shape is drawn twice.
+     *
+     * @param string[] $sources every source being drawn
+     * @return array{0: EntryQuery, 1: string}|null
+     */
+    public static function sourceQuery(string $source, array $sources): ?array
+    {
+        [$fieldUid, $sectionUid] = array_pad(explode(':', $source, 2), 2, null);
+        $field = Craft::$app->getFields()->getFieldByUid($fieldUid);
+
+        if (!$field instanceof self) {
+            return null;
+        }
+
+        $handle = $field->handle;
+        $query = Entry::find()->status('live')->$handle(':notempty:');
+        $sections = Craft::$app->getEntries();
+
+        if ($sectionUid !== null) {
+            $section = $sections->getSectionByUid($sectionUid);
+
+            return $section !== null ? [$query->andWhere(self::inSections([$section->id])), $handle] : null;
+        }
+
+        $split = [];
+
+        foreach ($sources as $other) {
+            [$otherField, $otherSection] = array_pad(explode(':', (string)$other, 2), 2, null);
+
+            if ($otherField === $fieldUid && $otherSection !== null && ($section = $sections->getSectionByUid($otherSection))) {
+                $split[] = $section->id;
+            }
+        }
+
+        if ($split !== []) {
+            $query->andWhere(['not', self::inSections($split)]);
+        }
+
+        return [$query, $handle];
+    }
+
+    /**
+     * Entries in these sections, or nested in an entry that is. Each side rules out NULL itself,
+     * since nested entries have no section and top-level entries no owner, and a NULL would
+     * otherwise drop rows when the condition is negated.
+     *
+     * @param int[] $sectionIds
+     */
+    private static function inSections(array $sectionIds): array
+    {
+        $owners = Entry::find()->sectionId($sectionIds)->status(null)->ids();
+
+        return ['or',
+            ['and', ['not', ['entries.sectionId' => null]], ['entries.sectionId' => $sectionIds]],
+            ['and', ['not', ['entries.primaryOwnerId' => null]], ['entries.primaryOwnerId' => $owners ?: [0]]],
+        ];
+    }
+
+    /**
+     * What the field settings offer to draw behind: each Landmark field, and each section using it.
+     *
+     * @return array<int, array{label: string, value: string}>
+     */
+    private function contextSourceOptions(): array
+    {
+        $options = [];
+
+        foreach (Craft::$app->getFields()->getFieldsByType(self::class) as $field) {
+            $name = sprintf('%s (%s)', $field->name, $field->handle);
+            $options[] = ['label' => $name, 'value' => $field->uid];
+
+            foreach (Craft::$app->getEntries()->getAllSections() as $section) {
+                foreach ($section->getEntryTypes() as $entryType) {
+                    if (self::layoutUses($entryType->getFieldLayout(), $field->uid)) {
+                        $options[] = ['label' => "$name in $section->name", 'value' => "$field->uid:$section->uid"];
+                        continue 2;
+                    }
+                }
+            }
+        }
+
+        return $options;
+    }
+
+    /** Whether a layout has the field, directly or in the entries of a Matrix field it has. */
+    private static function layoutUses(?FieldLayout $layout, string $uid, int $depth = 0): bool
+    {
+        foreach ($layout?->getCustomFields() ?? [] as $field) {
+            if ($field->uid === $uid) {
+                return true;
+            }
+
+            if ($depth < 2 && $field instanceof Matrix) {
+                foreach ($field->getEntryTypes() as $entryType) {
+                    if (self::layoutUses($entryType->getFieldLayout(), $uid, $depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed
     {
         if ($value instanceof Shape) {
@@ -123,6 +236,7 @@ class Map extends Field
     {
         return Craft::$app->getView()->renderTemplate('landmark/_field/settings.twig', [
             'field' => $this,
+            'sourceOptions' => $this->contextSourceOptions(),
         ]);
     }
 
@@ -188,12 +302,15 @@ class Map extends Field
         $sources = [];
 
         foreach ($this->contextFields as $i => $uid) {
-            $field = $fields->getFieldByUid($uid);
+            [$fieldUid, $sectionUid] = array_pad(explode(':', $uid, 2), 2, null);
+            $field = $fields->getFieldByUid($fieldUid);
+            $section = $sectionUid !== null ? Craft::$app->getEntries()->getSectionByUid($sectionUid) : null;
 
-            if ($field instanceof self) {
+            if ($field instanceof self && ($sectionUid === null || $section !== null)) {
                 $sources[] = [
                     'uid' => $uid,
-                    'label' => $field->name,
+                    // A section's own shapes are named for the section
+                    'label' => $section->name ?? $field->name,
                     'colour' => $colours[$i % count($colours)],
                 ];
             }

@@ -1,10 +1,5 @@
 {% import "_includes/forms.twig" as forms %}
 
-{% set landmarkFieldOptions = [] %}
-{% for f in craft.app.fields.getFieldsByType('bensomething\\landmark\\fields\\Map') %}
-    {% set landmarkFieldOptions = landmarkFieldOptions|merge([{ label: f.name ~ ' (' ~ f.handle ~ ')', value: f.uid }]) %}
-{% endfor %}
-
 {# Labelled with the handle too: a field can be renamed per layout, and two can share a handle #}
 {% set relationFieldOptions = [] %}
 {% for type in ['craft\\fields\\Entries', 'craft\\fields\\Categories'] %}
@@ -66,11 +61,11 @@
 
 {{ forms.checkboxGroupField({
     label: 'Show Shapes From'|t('landmark'),
-    instructions: 'Other entries\' shapes are drawn behind this field\'s own, so you can line things up. They can\'t be edited here.'|t('landmark'),
+    instructions: 'Other entries\' shapes are drawn behind this field\'s own, so you can line things up. They can\'t be edited here. A section picked on its own gets its own toggle, and is left out of the whole field\'s.'|t('landmark'),
     id: 'contextFields',
     name: 'contextFields',
     values: field.contextFields,
-    options: landmarkFieldOptions,
+    options: sourceOptions,
 }) }}
 
 {{ forms.checkboxGroupField({

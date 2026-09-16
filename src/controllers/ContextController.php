@@ -41,17 +41,14 @@ class ContextController extends Controller
         $features = [];
 
         foreach ($uids as $uid) {
-            $field = $fields->getFieldByUid($uid);
+            $found = MapField::sourceQuery((string)$uid, $uids);
 
-            if (!$field instanceof MapField) {
+            if ($found === null) {
                 continue;
             }
 
-            $handle = $field->handle;
-            $query = Entry::find()
-                ->status('live')
-                ->limit($limit)
-                ->$handle(':notempty:');
+            [$query, $handle] = $found;
+            $query->limit($limit);
 
             if ($relationIds !== [] && $related !== []) {
                 // By id, since a handle can belong to more than one field across layouts
