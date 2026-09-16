@@ -6,7 +6,7 @@
 {% endfor %}
 
 {# Labelled with the handle too: a field can be renamed per layout, and two can share a handle #}
-{% set relationFieldOptions = [{ label: 'None'|t('landmark'), value: '' }] %}
+{% set relationFieldOptions = [] %}
 {% for type in ['craft\\fields\\Entries', 'craft\\fields\\Categories'] %}
     {% for f in craft.app.fields.getFieldsByType(type) %}
         {% set relationFieldOptions = relationFieldOptions|merge([{ label: f.name ~ ' (' ~ f.handle ~ ')', value: f.uid }]) %}
@@ -73,12 +73,12 @@
     options: landmarkFieldOptions,
 }) }}
 
-{{ forms.selectField({
+{{ forms.checkboxGroupField({
     label: 'Only From Entries Sharing'|t('landmark'),
-    instructions: 'A relation both entries have, so a field only shows shapes from entries related to the same thing. Leave blank to show them all.'|t('landmark'),
-    id: 'contextRelation',
-    name: 'contextRelation',
-    value: field.contextRelation,
+    instructions: 'Relations entries can share, so a field only shows shapes from entries related to the same thing. Tick one for each entry type this field is on, and each entry uses whichever its own layout has. Leave all unticked to show every shape.'|t('landmark'),
+    id: 'contextRelations',
+    name: 'contextRelations',
+    values: field.contextRelations,
     options: relationFieldOptions,
 }) }}
 

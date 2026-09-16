@@ -30,10 +30,35 @@ class Map extends Field
     /** @var string[] UIDs of Landmark fields whose shapes are drawn behind this one */
     public array $contextFields = [];
 
-    /** UID of a relation field both entries share, so only matching entries are shown. */
-    public ?string $contextRelation = null;
+    /**
+     * @var string[] UIDs of relation fields entries can share, so only matching entries are shown.
+     * An entry matches on whichever of these its own layout has.
+     */
+    public array $contextRelations = [];
 
     public int $contextLimit = 250;
+
+    public function __construct(array $config = [])
+    {
+        // Saved before a field could match on more than one relation
+        if (array_key_exists('contextRelation', $config)) {
+            $old = $config['contextRelation'];
+            unset($config['contextRelation']);
+
+            if (!isset($config['contextRelations']) && is_string($old) && $old !== '') {
+                $config['contextRelations'] = [$old];
+            }
+        }
+
+        // An empty checkbox list posts an empty string
+        foreach (['contextFields', 'contextRelations'] as $key) {
+            if (array_key_exists($key, $config)) {
+                $config[$key] = array_values(array_filter((array)$config[$key]));
+            }
+        }
+
+        parent::__construct($config);
+    }
 
     public static function displayName(): string
     {
@@ -196,46 +221,42 @@ class Map extends Field
      */
     private function relationConfig(?ElementInterface $element): ?array
     {
-        if ($this->contextRelation === null || $this->contextRelation === '') {
+        if ($this->contextRelations === []) {
             return null;
         }
-
-        $field = Craft::$app->getFields()->getFieldByUid($this->contextRelation);
-
-        if ($field === null) {
-            return null;
-        }
-
-        $selected = [];
 
         // A field can be renamed per layout, so the entry's own instance is found by uid
         // and read by the handle that layout gives it
         $instance = null;
 
         foreach ($element?->getFieldLayout()?->getCustomFields() ?? [] as $layoutField) {
-            if ($layoutField->uid === $field->uid) {
+            if (in_array($layoutField->uid, $this->contextRelations, true)) {
                 $instance = $layoutField;
                 break;
             }
         }
 
+        // With none of the relations in its layout, an entry has nothing to match on
+        if ($instance === null) {
+            return null;
+        }
+
+        $selected = [];
         $options = [];
+        $value = $element->getFieldValue($instance->handle);
 
-        if ($instance !== null) {
-            $value = $element->getFieldValue($instance->handle);
-
-            if ($value instanceof ElementQueryInterface) {
-                // Only what this entry is related to, so a block can't sit on a year it isn't in
-                foreach ($value->limit(200)->all() as $related) {
-                    $selected[] = $related->id;
-                    $options[] = ['id' => $related->id, 'title' => (string)$related];
-                }
+        if ($value instanceof ElementQueryInterface) {
+            // Only what this entry is related to, so a block can't sit on a year it isn't in
+            foreach ($value->limit(200)->all() as $related) {
+                $selected[] = $related->id;
+                $options[] = ['id' => $related->id, 'title' => (string)$related];
             }
         }
 
         return [
-            'uid' => $this->contextRelation,
-            'label' => $instance?->name ?? $field->name,
+            'uid' => $instance->uid,
+            'fields' => $this->contextRelations,
+            'label' => $instance->name,
             'selected' => $selected,
             'options' => $options,
         ];

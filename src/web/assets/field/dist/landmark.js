@@ -290,7 +290,7 @@
             Craft.sendActionRequest('POST', 'landmark/context/shapes', {
                 data: {
                     sources: context.sources.map((s) => s.uid),
-                    relation: context.relation ? context.relation.uid : null,
+                    relations: context.relation ? context.relation.fields : [],
                     related: this.contextRelated,
                     exclude: context.exclude,
                     limit: context.limit,
@@ -465,7 +465,7 @@
         }
 
         fillRelationOptions(select, relation) {
-            Craft.sendActionRequest('POST', 'landmark/context/options', { data: { relation: relation.uid } })
+            Craft.sendActionRequest('POST', 'landmark/context/options', { data: { relations: relation.fields } })
                 .then((response) => this.fillOptions(select, (response.data && response.data.options) || []))
                 .catch(() => {});
         }

@@ -23,13 +23,21 @@ class ContextController extends Controller
 
         $request = $this->request;
         $uids = (array)$request->getBodyParam('sources', []);
-        $relationUid = $request->getBodyParam('relation');
+        $relationUids = array_filter((array)$request->getBodyParam('relations', []));
         $related = array_filter(array_map('intval', (array)$request->getBodyParam('related', [])));
         $exclude = array_map('intval', (array)$request->getBodyParam('exclude', []));
         $limit = min((int)$request->getBodyParam('limit', 250) ?: 250, 2000);
 
         $fields = Craft::$app->getFields();
-        $relation = $relationUid ? $fields->getFieldByUid($relationUid) : null;
+        $relationIds = [];
+
+        // Every relation counts, as other entries may relate through a different one to this entry
+        foreach ($relationUids as $relationUid) {
+            if ($relation = $fields->getFieldByUid($relationUid)) {
+                $relationIds[] = $relation->id;
+            }
+        }
+
         $features = [];
 
         foreach ($uids as $uid) {
@@ -45,9 +53,9 @@ class ContextController extends Controller
                 ->limit($limit)
                 ->$handle(':notempty:');
 
-            if ($relation !== null && $related !== []) {
+            if ($relationIds !== [] && $related !== []) {
                 // By id, since a handle can belong to more than one field across layouts
-                $query->relatedTo(['targetElement' => $related, 'field' => $relation->id]);
+                $query->relatedTo(['targetElement' => $related, 'field' => $relationIds]);
             }
 
             foreach ($query->all() as $entry) {
@@ -79,9 +87,15 @@ class ContextController extends Controller
         $this->requireAcceptsJson();
         $this->requireCpRequest();
 
-        $field = Craft::$app->getFields()->getFieldByUid((string)$this->request->getBodyParam('relation'));
+        $fieldIds = [];
 
-        if ($field === null) {
+        foreach (array_filter((array)$this->request->getBodyParam('relations', [])) as $uid) {
+            if ($field = Craft::$app->getFields()->getFieldByUid($uid)) {
+                $fieldIds[] = $field->id;
+            }
+        }
+
+        if ($fieldIds === []) {
             return $this->asJson(['options' => []]);
         }
 
@@ -91,7 +105,7 @@ class ContextController extends Controller
             ->select(['targetId'])
             ->distinct()
             ->from(Table::RELATIONS)
-            ->where(['fieldId' => $field->id])
+            ->where(['fieldId' => $fieldIds])
             ->limit(500)
             ->column();
 
