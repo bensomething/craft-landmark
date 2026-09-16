@@ -412,7 +412,7 @@
                         const select = L.DomUtil.create('select', '', row);
                         select.innerHTML = '<option value="">' + Craft.t('landmark', 'All') + '</option>';
                         select.addEventListener('change', () => {
-                            this.contextRelated = select.value ? [Number(select.value)] : [];
+                            this.contextRelated = select.value ? [Number(select.value)] : (context.relation.selected || []);
                             this.writeChoice(select.value);
                             this.loadContext();
                         });
@@ -449,7 +449,7 @@
                 return (relation && relation.selected) || [];
             }
 
-            return saved === '' ? [] : [Number(saved)];
+            return saved === '' ? (relation.selected || []) : [Number(saved)];
         }
 
         fillOptions(select, options) {
