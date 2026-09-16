@@ -45,7 +45,8 @@ class ContextController extends Controller
                 ->$handle(':notempty:');
 
             if ($relation !== null && $related !== []) {
-                $query->relatedTo(['targetElement' => $related, 'field' => $relation->handle]);
+                // By id, since a handle can belong to more than one field across layouts
+                $query->relatedTo(['targetElement' => $related, 'field' => $relation->id]);
             }
 
             foreach ($query->all() as $entry) {

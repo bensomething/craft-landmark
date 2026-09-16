@@ -207,8 +207,19 @@ class Map extends Field
 
         $selected = [];
 
-        if ($element !== null && $element->getFieldLayout()?->getFieldByHandle($field->handle)) {
-            $value = $element->getFieldValue($field->handle);
+        // A field can be renamed per layout, so the entry's own instance is found by uid
+        // and read by the handle that layout gives it
+        $instance = null;
+
+        foreach ($element?->getFieldLayout()?->getCustomFields() ?? [] as $layoutField) {
+            if ($layoutField->uid === $field->uid) {
+                $instance = $layoutField;
+                break;
+            }
+        }
+
+        if ($instance !== null) {
+            $value = $element->getFieldValue($instance->handle);
             $selected = $value instanceof ElementQueryInterface ? $value->ids() : [];
         }
 
