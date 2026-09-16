@@ -8,6 +8,7 @@ use bensomething\landmark\web\assets\field\LandmarkFieldAsset;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\elements\db\ElementQueryInterface;
 use craft\helpers\Cp;
 use craft\helpers\Json;
 use yii\db\Schema;
@@ -25,6 +26,14 @@ class Map extends Field
     public ?int $defaultZoom = null;
 
     public ?int $height = null;
+
+    /** @var string[] UIDs of Landmark fields whose shapes are drawn behind this one */
+    public array $contextFields = [];
+
+    /** UID of a relation field both entries share, so only matching entries are shown. */
+    public ?string $contextRelation = null;
+
+    public int $contextLimit = 250;
 
     public static function displayName(): string
     {
@@ -54,6 +63,7 @@ class Map extends Field
             [['defaultLng'], 'number', 'min' => -180, 'max' => 180],
             [['defaultZoom'], 'integer', 'min' => 0, 'max' => 22],
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
+            [['contextLimit'], 'integer', 'min' => 1, 'max' => 2000],
         ]);
     }
 
@@ -112,6 +122,7 @@ class Map extends Field
                 $this->defaultLng ?? $settings->defaultLng,
             ],
             'zoom' => $this->defaultZoom ?? $settings->defaultZoom,
+            'context' => $this->contextConfig($element),
             'icons' => [
                 'code' => Cp::iconSvg('code'),
                 'map' => Cp::iconSvg('map'),
@@ -132,6 +143,76 @@ class Map extends Field
             'field' => $this,
             'height' => $this->height ?? $settings->height,
         ]);
+    }
+
+    /**
+     * What the editor needs to draw other entries' shapes behind this one.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function contextConfig(?ElementInterface $element): ?array
+    {
+        if ($this->contextFields === []) {
+            return null;
+        }
+
+        $fields = Craft::$app->getFields();
+        $colours = ['#4299e1', '#f56565', '#48bb78', '#ed8936', '#9f7aea', '#38b2ac'];
+        $sources = [];
+
+        foreach ($this->contextFields as $i => $uid) {
+            $field = $fields->getFieldByUid($uid);
+
+            if ($field instanceof self) {
+                $sources[] = [
+                    'uid' => $uid,
+                    'label' => $field->name,
+                    'colour' => $colours[$i % count($colours)],
+                ];
+            }
+        }
+
+        if ($sources === []) {
+            return null;
+        }
+
+        return [
+            'sources' => $sources,
+            'relation' => $this->relationConfig($element),
+            'limit' => $this->contextLimit,
+            'exclude' => $element?->id,
+        ];
+    }
+
+    /**
+     * The relation the context is filtered by, and what this entry is related to.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function relationConfig(?ElementInterface $element): ?array
+    {
+        if ($this->contextRelation === null || $this->contextRelation === '') {
+            return null;
+        }
+
+        $field = Craft::$app->getFields()->getFieldByUid($this->contextRelation);
+
+        if ($field === null) {
+            return null;
+        }
+
+        $selected = [];
+
+        if ($element !== null && $element->getFieldLayout()?->getFieldByHandle($field->handle)) {
+            $value = $element->getFieldValue($field->handle);
+            $selected = $value instanceof ElementQueryInterface ? $value->ids() : [];
+        }
+
+        return [
+            'uid' => $this->contextRelation,
+            'label' => $field->name,
+            'selected' => $selected,
+        ];
     }
 
     /** @return array<string, bool> */

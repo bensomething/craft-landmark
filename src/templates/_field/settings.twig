@@ -1,5 +1,17 @@
 {% import "_includes/forms.twig" as forms %}
 
+{% set landmarkFieldOptions = [] %}
+{% for f in craft.app.fields.getFieldsByType('bensomething\\landmark\\fields\\Map') %}
+    {% set landmarkFieldOptions = landmarkFieldOptions|merge([{ label: f.name, value: f.uid }]) %}
+{% endfor %}
+
+{% set relationFieldOptions = [{ label: 'None'|t('landmark'), value: '' }] %}
+{% for type in ['craft\\fields\\Entries', 'craft\\fields\\Categories'] %}
+    {% for f in craft.app.fields.getFieldsByType(type) %}
+        {% set relationFieldOptions = relationFieldOptions|merge([{ label: f.name, value: f.uid }]) %}
+    {% endfor %}
+{% endfor %}
+
 {{ forms.checkboxGroupField({
     label: 'Tools'|t('landmark'),
     instructions: 'What can be drawn in this field.'|t('landmark'),
@@ -47,6 +59,37 @@
     type: 'number',
     size: 4,
 }) }}
+
+<hr>
+
+{{ forms.checkboxGroupField({
+    label: 'Show Shapes From'|t('landmark'),
+    instructions: 'Other entries\' shapes are drawn behind this field\'s own, so you can line things up. They can\'t be edited here.'|t('landmark'),
+    id: 'contextFields',
+    name: 'contextFields',
+    values: field.contextFields,
+    options: landmarkFieldOptions,
+}) }}
+
+{{ forms.selectField({
+    label: 'Only From Entries Sharing'|t('landmark'),
+    instructions: 'A relation both entries have, so a field only shows shapes from entries related to the same thing. Leave blank to show them all.'|t('landmark'),
+    id: 'contextRelation',
+    name: 'contextRelation',
+    value: field.contextRelation,
+    options: relationFieldOptions,
+}) }}
+
+{{ forms.textField({
+    label: 'Most Shapes To Show'|t('landmark'),
+    id: 'contextLimit',
+    name: 'contextLimit',
+    value: field.contextLimit,
+    type: 'number',
+    size: 5,
+}) }}
+
+<hr>
 
 {{ forms.textField({
     label: 'Map Height'|t('landmark'),

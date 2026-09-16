@@ -32,6 +32,7 @@
 
             this.initMap();
             this.initCodePanel();
+            this.initContext();
         }
 
         initMap() {
@@ -208,6 +209,132 @@
                     this.parse(this.textarea.value);
                 });
             }
+        }
+
+        /** Other entries' shapes, drawn behind this field's own and never editable. */
+        initContext() {
+            const context = this.config.context;
+
+            if (!context) {
+                return;
+            }
+
+            this.context = L.layerGroup().addTo(this.map);
+            this.contextRelated = (context.relation && context.relation.selected) || [];
+            this.sources = {};
+
+            context.sources.forEach((source) => {
+                this.sources[source.uid] = L.featureGroup().addTo(this.context);
+            });
+
+            this.addContextControl(context);
+            this.loadContext();
+        }
+
+        loadContext() {
+            const context = this.config.context;
+
+            Craft.sendActionRequest('POST', 'landmark/context/shapes', {
+                data: {
+                    sources: context.sources.map((s) => s.uid),
+                    relation: context.relation ? context.relation.uid : null,
+                    related: this.contextRelated,
+                    exclude: context.exclude,
+                    limit: context.limit,
+                },
+            })
+                .then((response) => {
+                    const features = (response.data && response.data.features) || [];
+
+                    Object.values(this.sources).forEach((group) => group.clearLayers());
+
+                    features.forEach((feature) => {
+                        const source = context.sources.find((s) => s.uid === feature.properties.source);
+                        const group = source && this.sources[source.uid];
+
+                        if (!group) {
+                            return;
+                        }
+
+                        L.geoJSON(feature, {
+                            pmIgnore: true,
+                            interactive: true,
+                            renderer: L.canvas(),
+                            style: { color: source.colour, weight: 1, fillOpacity: 0.08, opacity: 0.6 },
+                            pointToLayer: (point, latlng) => L.circleMarker(latlng, { radius: 4, color: source.colour, weight: 1, fillOpacity: 0.4 }),
+                        })
+                            .bindTooltip(feature.properties.title || source.label, { direction: 'top', sticky: true })
+                            .addTo(group);
+                    });
+                })
+                .catch((e) => {
+                    console.warn('Landmark: could not load other shapes.', e);
+                });
+        }
+
+        addContextControl(context) {
+            const control = L.Control.extend({
+                options: { position: 'bottomleft' },
+                onAdd: () => {
+                    const box = L.DomUtil.create('div', 'leaflet-bar leaflet-control landmark-context');
+
+                    L.DomEvent.disableClickPropagation(box);
+                    L.DomEvent.disableScrollPropagation(box);
+
+                    context.sources.forEach((source) => {
+                        const row = L.DomUtil.create('label', 'landmark-context-source', box);
+                        const tick = L.DomUtil.create('input', '', row);
+
+                        tick.type = 'checkbox';
+                        tick.checked = true;
+                        tick.addEventListener('change', () => {
+                            const group = this.sources[source.uid];
+                            tick.checked ? this.context.addLayer(group) : this.context.removeLayer(group);
+                        });
+
+                        const swatch = L.DomUtil.create('span', 'landmark-context-swatch', row);
+                        swatch.style.backgroundColor = source.colour;
+
+                        L.DomUtil.create('span', '', row).textContent = source.label;
+                    });
+
+                    if (context.relation) {
+                        const row = L.DomUtil.create('label', 'landmark-context-relation', box);
+
+                        L.DomUtil.create('span', '', row).textContent = context.relation.label;
+
+                        const select = L.DomUtil.create('select', '', row);
+                        select.innerHTML = '<option value="">' + Craft.t('landmark', 'All') + '</option>';
+                        select.addEventListener('change', () => {
+                            this.contextRelated = select.value ? [Number(select.value)] : [];
+                            this.loadContext();
+                        });
+
+                        this.fillRelationOptions(select, context.relation);
+                    }
+
+                    return box;
+                },
+            });
+
+            this.map.addControl(new control());
+        }
+
+        fillRelationOptions(select, relation) {
+            Craft.sendActionRequest('POST', 'landmark/context/options', { data: { relation: relation.uid } })
+                .then((response) => {
+                    const options = (response.data && response.data.options) || [];
+
+                    options.forEach((option) => {
+                        const el = document.createElement('option');
+
+                        el.value = option.id;
+                        el.textContent = option.title;
+                        el.selected = this.contextRelated.includes(option.id);
+                        select.appendChild(el);
+                    });
+                })
+                .catch(() => {});
         }
 
         draw(geometry, fit) {

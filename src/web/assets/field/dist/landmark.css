@@ -102,6 +102,40 @@
     resize: none;
 }
 
+.landmark-context {
+    padding: 6px 8px;
+    background-color: var(--white);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.landmark-context-source,
+.landmark-context-relation {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.landmark-context-relation {
+    margin-top: 4px;
+}
+
+.landmark-context-relation select {
+    max-width: 140px;
+    font-size: 11px;
+}
+
+.landmark-context-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.landmark-editing .landmark-context {
+    display: none;
+}
+
 .landmark-error {
     margin: 0;
     padding: 6px 10px;
