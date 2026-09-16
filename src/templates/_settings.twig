@@ -1,0 +1,120 @@
+{% import "_includes/forms.twig" as forms %}
+
+{% set cartoOptions = [] %}
+{% for value, label in constant('bensomething\\landmark\\models\\Settings::CARTO_STYLES') %}
+    {% set cartoOptions = cartoOptions|merge([{ label: label, value: value }]) %}
+{% endfor %}
+
+{{ forms.selectField({
+    label: 'Basemap'|t('landmark'),
+    instructions: 'The map every Landmark field starts on.'|t('landmark'),
+    id: 'basemap',
+    name: 'basemap',
+    value: settings.basemap,
+    options: [
+        { label: 'OpenStreetMap'|t('landmark'), value: 'osm' },
+        { label: 'CARTO'|t('landmark'), value: 'carto' },
+        { label: 'Other'|t('landmark'), value: 'other' },
+    ],
+    toggle: true,
+    targetPrefix: '.basemap-',
+}) }}
+
+<div class="basemap-carto {{ settings.basemap != 'carto' ? 'hidden' }}">
+    {{ forms.selectField({
+        label: 'CARTO Style'|t('landmark'),
+        id: 'cartoStyle',
+        name: 'cartoStyle',
+        value: settings.cartoStyle,
+        options: cartoOptions,
+    }) }}
+
+    {{ forms.autosuggestField({
+        label: 'CARTO API Key'|t('landmark'),
+        instructions: 'CARTO basemaps need a key, which is free from [carto.com](https://carto.com).'|t('landmark'),
+        id: 'cartoApiKey',
+        name: 'cartoApiKey',
+        value: settings.cartoApiKey,
+        suggestEnvVars: true,
+        errors: settings.getErrors('cartoApiKey'),
+    }) }}
+</div>
+
+<div class="basemap-other {{ settings.basemap != 'other' ? 'hidden' }}">
+    {{ forms.autosuggestField({
+        label: 'Tile URL'|t('landmark'),
+        instructions: 'A Leaflet tile URL. Use `{key}` where a key belongs, or leave it out and the key below is added as `key=`.'|t('landmark'),
+        id: 'customUrl',
+        name: 'customUrl',
+        value: settings.customUrl,
+        suggestEnvVars: true,
+        placeholder: 'https://tiles.example.com/{z}/{x}/{y}.png',
+        errors: settings.getErrors('customUrl'),
+    }) }}
+
+    {{ forms.autosuggestField({
+        label: 'API Key'|t('landmark'),
+        instructions: 'Optional.'|t('landmark'),
+        id: 'customApiKey',
+        name: 'customApiKey',
+        value: settings.customApiKey,
+        suggestEnvVars: true,
+    }) }}
+
+    {{ forms.textField({
+        label: 'Attribution'|t('landmark'),
+        instructions: 'Shown in the corner of the map. HTML is allowed.'|t('landmark'),
+        id: 'customAttribution',
+        name: 'customAttribution',
+        value: settings.customAttribution,
+    }) }}
+</div>
+
+<hr>
+
+{{ forms.autosuggestField({
+    label: 'Google Maps API Key'|t('landmark'),
+    instructions: 'A Google Cloud key with the Map Tiles API enabled, which adds a Satellite switch to every field. Leave empty for the basemap only. Restrict the key to your control panel domain and to that API.'|t('landmark'),
+    id: 'googleApiKey',
+    name: 'googleApiKey',
+    value: settings.googleApiKey,
+    suggestEnvVars: true,
+    placeholder: '$GOOGLE_MAPS_API_KEY',
+}) }}
+
+{{ forms.textField({
+    label: 'Default Latitude'|t('landmark'),
+    instructions: 'Where a map opens before anything is drawn.'|t('landmark'),
+    id: 'defaultLat',
+    name: 'defaultLat',
+    value: settings.defaultLat,
+    size: 12,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Longitude'|t('landmark'),
+    id: 'defaultLng',
+    name: 'defaultLng',
+    value: settings.defaultLng,
+    size: 12,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Zoom'|t('landmark'),
+    id: 'defaultZoom',
+    name: 'defaultZoom',
+    value: settings.defaultZoom,
+    type: 'number',
+    size: 4,
+}) }}
+
+{{ forms.textField({
+    label: 'Map Height'|t('landmark'),
+    instructions: 'How tall the editor’s map is, in pixels.'|t('landmark'),
+    id: 'height',
+    name: 'height',
+    value: settings.height,
+    type: 'number',
+    size: 5,
+    unit: 'px'|t('landmark'),
+}) }}
