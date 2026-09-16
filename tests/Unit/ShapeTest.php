@@ -53,6 +53,20 @@ class ShapeTest extends TestCase
         $this->assertSame('-2.58, 51.14', $shape->getCoordinates());
     }
 
+    public function testPointInACollectionGivesLatAndLng(): void
+    {
+        $shape = new Shape([
+            'type' => 'GeometryCollection',
+            'geometries' => [
+                ['type' => 'Polygon', 'coordinates' => [[[-2.58, 51.14], [-2.57, 51.14], [-2.58, 51.14]]]],
+                ['type' => 'Point', 'coordinates' => [-2.586, 51.155]],
+            ],
+        ]);
+
+        $this->assertSame(51.155, $shape->getLat());
+        $this->assertSame(-2.586, $shape->getLng());
+    }
+
     public function testLatAndLngAreNullForShapes(): void
     {
         $shape = new Shape(['type' => 'Polygon', 'coordinates' => [[[-2.58, 51.14], [-2.57, 51.14]]]]);
@@ -76,7 +90,7 @@ class ShapeTest extends TestCase
         $this->assertSame('GeometryCollection', $shape->getType());
         $this->assertCount(2, $shape->getGeometries());
         $this->assertNull($shape->getCoordinates());
-        $this->assertNull($shape->getLat());
+        $this->assertSame(51.14, $shape->getLat());
         $this->assertSame($geometry, $shape->feature()['geometry']);
     }
 

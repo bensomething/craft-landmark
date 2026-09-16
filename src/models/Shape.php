@@ -100,12 +100,16 @@ class Shape implements Stringable
 
     public function getLat(): ?float
     {
-        return $this->getType() === 'Point' ? ($this->geometry['coordinates'][1] ?? null) : null;
+        $point = $this->point();
+
+        return isset($point[1]) ? (float)$point[1] : null;
     }
 
     public function getLng(): ?float
     {
-        return $this->getType() === 'Point' ? ($this->geometry['coordinates'][0] ?? null) : null;
+        $point = $this->point();
+
+        return isset($point[0]) ? (float)$point[0] : null;
     }
 
     public function __toString(): string
@@ -116,6 +120,22 @@ class Shape implements Stringable
     private function inner(string $json): string
     {
         return substr($json, 1, -1);
+    }
+
+    /**
+     * The first point in the value, whether that is all it holds or one part of a collection.
+     *
+     * @return array<int, float|int>|null
+     */
+    private function point(): ?array
+    {
+        foreach ($this->getGeometries() as $geometry) {
+            if (($geometry['type'] ?? null) === 'Point') {
+                return $geometry['coordinates'] ?? null;
+            }
+        }
+
+        return null;
     }
 
     /** @param array<string, mixed>|null $geometry */
