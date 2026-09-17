@@ -150,8 +150,3 @@
     height: calc(100vh - 260px);
     min-height: 420px;
 }
-
-.landmark-overview-hint {
-    margin-top: 8px;
-    font-size: 12px;
-}

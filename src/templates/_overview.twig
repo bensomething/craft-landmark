@@ -2,7 +2,7 @@
 
 {% set title = 'Map'|t('landmark') %}
 
-{% block toolbar %}
+{% block actionButton %}
     {% if field %}
         {{ disclosureMenu(fields|map(f => {
             label: f.name,
@@ -21,7 +21,6 @@
         <div id="landmark-overview" class="landmark-overview">
             <div class="landmark-map"></div>
         </div>
-        <p class="landmark-overview-hint light">{{ 'Double-click a shape or marker to edit its entry.'|t('landmark') }}</p>
     {% else %}
         <p>{{ 'Turn on the overview map in the <a href="{url}">plugin settings</a>, and give a Landmark field some Show Shapes From sources for it to show.'|t('landmark', { url: cpUrl('settings/plugins/landmark') })|raw }}</p>
     {% endif %}
