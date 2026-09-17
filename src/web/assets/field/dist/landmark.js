@@ -9,8 +9,136 @@
         polygon: ['Polygon', 'MultiPolygon'],
     };
 
-    class Field {
+    /** What the field and the overview map share: the basemaps, icons, sizing and remembered choices. */
+    class MapBase {
+        /** Craft's own icons, with a text glyph as a fallback. */
+        icon(name) {
+            const icons = this.config.icons || {};
+
+            return icons[name] || { code: '&lt;/&gt;', map: '&#9723;', layers: '&#9776;' }[name] || '';
+        }
+
+        /**
+         * A map started inside a closed tab or a collapsed block measures itself as tiny,
+         * so it is told to measure again once it can be seen, and whenever it is resized.
+         */
+        watchSize() {
+            const container = this.map.getContainer();
+
+            new IntersectionObserver((entries, observer) => {
+                if (entries[0].intersectionRatio === 0) {
+                    return;
+                }
+
+                observer.disconnect();
+                this.map.invalidateSize(false);
+
+                if (this.pendingFit) {
+                    this.map.fitBounds(this.pendingFit, { padding: [20, 20], maxZoom: 18, animate: false });
+                    this.pendingFit = null;
+                }
+            }).observe(container);
+
+            if (typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(() => this.map.invalidateSize(false)).observe(container);
+            }
+        }
+
+        /** A layer switcher for whichever imagery is set up, next to the basemap. */
+        initBasemaps() {
+            const esri = this.config.esriImagery
+                ? L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Imagery &copy; Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+                    maxZoom: 22,
+                    maxNativeZoom: 19,
+                })
+                : null;
+
+            const add = (google) => this.addBasemapControl(Object.assign(
+                { Map: this.basemap },
+                google ? { Satellite: google } : {},
+                esri ? { 'Esri Imagery': esri } : {}
+            ));
+
+            if (!this.config.hasSatellite) {
+                add(null);
+                return;
+            }
+
+            Craft.sendActionRequest('POST', 'landmark/tiles/session')
+                .then((response) => {
+                    const data = response.data || {};
+
+                    if (!data.tileUrl) {
+                        console.warn('Landmark: no satellite layer. ' + (data.error || ''));
+                        add(null);
+                        return;
+                    }
+
+                    add(L.tileLayer(data.tileUrl, { attribution: data.attribution, maxZoom: 22, maxNativeZoom: 20 }));
+                })
+                .catch((e) => {
+                    console.warn('Landmark: no satellite layer.', e);
+                    add(null);
+                });
+        }
+
+        addBasemapControl(layers) {
+            if (Object.keys(layers).length < 2) {
+                return;
+            }
+
+            // The radios are kept out of the entry form. They can appear after Craft
+            // has read it, which it would otherwise save as an unsaved change.
+            const Layers = L.Control.Layers.extend({
+                _createRadioElement(name, checked) {
+                    const input = L.Control.Layers.prototype._createRadioElement.call(this, name, checked);
+
+                    input.setAttribute('form', 'landmark-detached');
+
+                    return input;
+                },
+            });
+
+            const control = new Layers(layers, null, { position: 'topright' }).addTo(this.map);
+            const remembered = layers[this.remembered('basemap')];
+
+            if (remembered && remembered !== this.basemap) {
+                this.map.removeLayer(this.basemap);
+                this.map.addLayer(remembered);
+            }
+
+            this.map.on('baselayerchange', (e) => this.remember('basemap', e.name));
+
+            const toggle = control.getContainer().querySelector('.leaflet-control-layers-toggle');
+
+            if (toggle) {
+                toggle.classList.add('landmark-layers-toggle');
+                toggle.innerHTML = this.icon('layers');
+            }
+        }
+
+        /** What a map remembers between visits, kept under its own name. */
+        remembered(what) {
+            try {
+                return window.localStorage.getItem(`landmark:${this.config.name}:${what}`);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        remember(what, value) {
+            try {
+                window.localStorage.setItem(`landmark:${this.config.name}:${what}`, value);
+            } catch (e) {
+                // Storage can be turned off, in which case the choice lasts for this page only
+            }
+        }
+    }
+
+    class Field extends MapBase {
         constructor(id, config) {
+            super();
             this.container = document.getElementById(id);
 
             if (!this.container) {
@@ -92,39 +220,6 @@
             this.initBasemaps();
         }
 
-        /** Craft's own icons, with a text glyph as a fallback. */
-        icon(name) {
-            const icons = this.config.icons || {};
-
-            return icons[name] || { code: '&lt;/&gt;', map: '&#9723;', layers: '&#9776;' }[name] || '';
-        }
-
-        /**
-         * A map started inside a closed tab or a collapsed block measures itself as tiny,
-         * so it is told to measure again once it can be seen, and whenever it is resized.
-         */
-        watchSize() {
-            const container = this.map.getContainer();
-
-            new IntersectionObserver((entries, observer) => {
-                if (entries[0].intersectionRatio === 0) {
-                    return;
-                }
-
-                observer.disconnect();
-                this.map.invalidateSize(false);
-
-                if (this.pendingFit) {
-                    this.map.fitBounds(this.pendingFit, { padding: [20, 20], maxZoom: 18, animate: false });
-                    this.pendingFit = null;
-                }
-            }).observe(container);
-
-            if (typeof ResizeObserver !== 'undefined') {
-                new ResizeObserver(() => this.map.invalidateSize(false)).observe(container);
-            }
-        }
-
         drawTools() {
             const shapes = this.config.shapes || [];
 
@@ -133,80 +228,6 @@
                 drawPolyline: shapes.includes('line'),
                 drawPolygon: shapes.includes('polygon'),
             };
-        }
-
-        /** A layer switcher for whichever imagery is set up, next to the basemap. */
-        initBasemaps() {
-            const esri = this.config.esriImagery
-                ? L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Imagery &copy; Esri, Vantor, Earthstar Geographics, and the GIS User Community',
-                    maxZoom: 22,
-                    maxNativeZoom: 19,
-                })
-                : null;
-
-            const add = (google) => this.addBasemapControl(Object.assign(
-                { Map: this.basemap },
-                google ? { Satellite: google } : {},
-                esri ? { 'Esri Imagery': esri } : {}
-            ));
-
-            if (!this.config.hasSatellite) {
-                add(null);
-                return;
-            }
-
-            Craft.sendActionRequest('POST', 'landmark/tiles/session')
-                .then((response) => {
-                    const data = response.data || {};
-
-                    if (!data.tileUrl) {
-                        console.warn('Landmark: no satellite layer. ' + (data.error || ''));
-                        add(null);
-                        return;
-                    }
-
-                    add(L.tileLayer(data.tileUrl, { attribution: data.attribution, maxZoom: 22, maxNativeZoom: 20 }));
-                })
-                .catch((e) => {
-                    console.warn('Landmark: no satellite layer.', e);
-                    add(null);
-                });
-        }
-
-        addBasemapControl(layers) {
-            if (Object.keys(layers).length < 2) {
-                return;
-            }
-
-            // The radios are kept out of the entry form. They can appear after Craft
-            // has read it, which it would otherwise save as an unsaved change.
-            const Layers = L.Control.Layers.extend({
-                _createRadioElement(name, checked) {
-                    const input = L.Control.Layers.prototype._createRadioElement.call(this, name, checked);
-
-                    input.setAttribute('form', 'landmark-detached');
-
-                    return input;
-                },
-            });
-
-            const control = new Layers(layers, null, { position: 'topright' }).addTo(this.map);
-            const remembered = layers[this.remembered('basemap')];
-
-            if (remembered && remembered !== this.basemap) {
-                this.map.removeLayer(this.basemap);
-                this.map.addLayer(remembered);
-            }
-
-            this.map.on('baselayerchange', (e) => this.remember('basemap', e.name));
-
-            const toggle = control.getContainer().querySelector('.leaflet-control-layers-toggle');
-
-            if (toggle) {
-                toggle.classList.add('landmark-layers-toggle');
-                toggle.innerHTML = this.icon('layers');
-            }
         }
 
         /**
@@ -358,23 +379,6 @@
                 .catch((e) => {
                     console.warn('Landmark: could not load other shapes.', e);
                 });
-        }
-
-        /** What this field remembers between entries, kept under its own name. */
-        remembered(what) {
-            try {
-                return window.localStorage.getItem(`landmark:${this.config.name}:${what}`);
-            } catch (e) {
-                return null;
-            }
-        }
-
-        remember(what, value) {
-            try {
-                window.localStorage.setItem(`landmark:${this.config.name}:${what}`, value);
-            } catch (e) {
-                // Storage can be turned off, in which case the choice lasts for this page only
-            }
         }
 
         readChoice() {

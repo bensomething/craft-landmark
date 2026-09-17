@@ -312,10 +312,31 @@ class Map extends Field
      */
     private function contextConfig(?ElementInterface $element): ?array
     {
-        if ($this->contextFields === []) {
+        $sources = $this->contextSources();
+
+        if ($sources === []) {
             return null;
         }
 
+        return [
+            'sources' => $sources,
+            'relation' => $this->relationConfig($element),
+            'limit' => $this->contextLimit,
+            // A draft and the entry it belongs to have different ids, and neither should show as another entry
+            'exclude' => array_values(array_unique(array_filter([
+                $element?->id,
+                $element?->getCanonicalId(),
+            ]))),
+        ];
+    }
+
+    /**
+     * The sources this field draws behind its own, each with a label and colour.
+     *
+     * @return array<int, array{uid: string, label: string, colour: string}>
+     */
+    public function contextSources(): array
+    {
         $fields = Craft::$app->getFields();
         $colours = ['#4299e1', '#f56565', '#48bb78', '#ed8936', '#9f7aea', '#38b2ac'];
         $sources = [];
@@ -335,20 +356,7 @@ class Map extends Field
             }
         }
 
-        if ($sources === []) {
-            return null;
-        }
-
-        return [
-            'sources' => $sources,
-            'relation' => $this->relationConfig($element),
-            'limit' => $this->contextLimit,
-            // A draft and the entry it belongs to have different ids, and neither should show as another entry
-            'exclude' => array_values(array_unique(array_filter([
-                $element?->id,
-                $element?->getCanonicalId(),
-            ]))),
-        ];
+        return $sources;
     }
 
     /**
