@@ -13,3 +13,4 @@
 - Keys written against a shape, such as opacity or colour, are kept. A Shape Opacity setting sets the default.
 - Only From Entries Sharing takes more than one relation field, so one field can serve entry types with different ones.
 - Shapes can be drawn from one section at a time, each with its own toggle and colour.
+- An optional Map page in the control panel, showing every shape from one field's sources, filtered by its relation. Double-clicking a shape opens its entry in a slideout.

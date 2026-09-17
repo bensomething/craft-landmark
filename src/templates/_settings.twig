@@ -127,6 +127,14 @@
     unit: 'px'|t('landmark'),
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Overview Map'|t('landmark'),
+    instructions: 'Adds a Map page to the control panel, showing every shape from a field’s Show Shapes From sources, filtered by its relation. Double-clicking a shape opens its entry.'|t('landmark'),
+    id: 'overviewMap',
+    name: 'overviewMap',
+    on: settings.overviewMap,
+}) }}
+
 {{ forms.textField({
     label: 'Shape Opacity'|t('landmark'),
     instructions: 'How solid a shape is drawn, from 0 to 1. A shape can carry its own `opacity` to override this.'|t('landmark'),

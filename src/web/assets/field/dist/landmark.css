@@ -144,3 +144,14 @@
     color: var(--error-color);
     font-size: 12px;
 }
+
+/* The overview map fills the page below the header */
+.landmark-overview .landmark-map {
+    height: calc(100vh - 260px);
+    min-height: 420px;
+}
+
+.landmark-overview-hint {
+    margin-top: 8px;
+    font-size: 12px;
+}

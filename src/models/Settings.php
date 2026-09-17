@@ -41,6 +41,9 @@ class Settings extends Model
     /** How solid a shape is drawn, unless it carries an opacity of its own. */
     public float $shapeOpacity = 0.1;
 
+    /** Adds a Map page to the control panel, showing a field's sources all at once. */
+    public bool $overviewMap = false;
+
     public const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
     public const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
     public const CARTO_URL = 'https://{s}.basemaps.cartocdn.com/%s/{z}/{x}/{y}{r}.png';
@@ -138,6 +141,7 @@ class Settings extends Model
             'defaultZoom' => Craft::t('landmark', 'Default Zoom'),
             'height' => Craft::t('landmark', 'Map Height'),
             'shapeOpacity' => Craft::t('landmark', 'Shape Opacity'),
+            'overviewMap' => Craft::t('landmark', 'Overview Map'),
         ];
     }
 }

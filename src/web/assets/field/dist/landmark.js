@@ -689,6 +689,216 @@
         }
     }
 
+    /** Every shape from a field's sources on one map. Double-clicking a shape opens its entry. */
+    class Overview extends MapBase {
+        constructor(id, config) {
+            super();
+            this.container = document.getElementById(id);
+
+            if (!this.container || typeof L === 'undefined' || !L.map) {
+                return;
+            }
+
+            this.config = config;
+            this.sources = {};
+            this.hidden = {};
+            this.related = [];
+            this.fitted = false;
+            // A little slack around each shape, so thin lines and small markers are easy to hit
+            this.renderer = L.canvas({ tolerance: 4 });
+
+            this.map = L.map(this.container.querySelector('.landmark-map'), {
+                center: config.centre,
+                zoom: config.zoom,
+            });
+
+            this.basemap = L.tileLayer(config.basemapUrl, {
+                attribution: config.basemapAttribution,
+                maxZoom: 22,
+                maxNativeZoom: 20,
+            }).addTo(this.map);
+
+            config.sources.forEach((source) => {
+                this.sources[source.uid] = [];
+                this.hidden[source.uid] = this.remembered(`hidden:${source.uid}`) === '1';
+            });
+
+            this.watchSize();
+            this.initBasemaps();
+            this.addControl();
+        }
+
+        addControl() {
+            const control = L.Control.extend({
+                options: { position: 'bottomleft' },
+                onAdd: () => {
+                    const box = L.DomUtil.create('div', 'leaflet-bar leaflet-control landmark-context');
+
+                    L.DomEvent.disableClickPropagation(box);
+                    L.DomEvent.disableScrollPropagation(box);
+
+                    this.config.sources.forEach((source) => {
+                        const row = L.DomUtil.create('label', 'landmark-context-source', box);
+                        const tick = L.DomUtil.create('input', '', row);
+
+                        tick.type = 'checkbox';
+                        tick.checked = !this.hidden[source.uid];
+                        tick.addEventListener('change', () => {
+                            this.hidden[source.uid] = !tick.checked;
+                            this.remember(`hidden:${source.uid}`, tick.checked ? '0' : '1');
+                            this.sources[source.uid].forEach((layer) => {
+                                tick.checked ? layer.addTo(this.map) : this.map.removeLayer(layer);
+                            });
+                        });
+
+                        L.DomUtil.create('span', 'landmark-context-swatch', row).style.backgroundColor = source.colour;
+                        L.DomUtil.create('span', '', row).textContent = source.label;
+                    });
+
+                    if ((this.config.relations || []).length) {
+                        this.addRelationPicker(box);
+                    } else {
+                        this.load();
+                    }
+
+                    return box;
+                },
+            });
+
+            this.map.addControl(new control());
+        }
+
+        /** Starts on the last choice, or the first option, which is the newest. */
+        addRelationPicker(box) {
+            const row = L.DomUtil.create('label', 'landmark-context-relation', box);
+            const select = L.DomUtil.create('select', '', row);
+
+            select.innerHTML = '<option value="">' + Craft.t('landmark', 'All') + '</option>';
+            select.addEventListener('change', () => {
+                this.related = select.value ? [Number(select.value)] : [];
+                this.remember('related', select.value);
+                this.load();
+            });
+
+            Craft.sendActionRequest('POST', 'landmark/context/options', { data: { relations: this.config.relations } })
+                .then((response) => {
+                    const options = (response.data && response.data.options) || [];
+                    const saved = this.remembered('related');
+
+                    options.forEach((option) => {
+                        const el = document.createElement('option');
+
+                        el.value = option.id;
+                        el.textContent = option.title;
+                        select.appendChild(el);
+                    });
+
+                    const ids = options.map((option) => String(option.id));
+                    select.value = saved !== null && (saved === '' || ids.includes(saved)) ? saved : (ids[0] || '');
+                    this.related = select.value ? [Number(select.value)] : [];
+                    this.load();
+                })
+                .catch(() => this.load());
+        }
+
+        load() {
+            const run = (this.run || 0) + 1;
+            this.run = run;
+
+            Craft.sendActionRequest('POST', 'landmark/context/shapes', {
+                data: {
+                    sources: this.config.sources.map((source) => source.uid),
+                    relations: this.config.relations,
+                    related: this.related,
+                    limit: 2000,
+                },
+            })
+                .then((response) => {
+                    // A slower answer for an earlier choice is dropped
+                    if (run !== this.run) {
+                        return;
+                    }
+
+                    Object.values(this.sources).forEach((layers) => {
+                        layers.forEach((layer) => this.map.removeLayer(layer));
+                        layers.length = 0;
+                    });
+
+                    ((response.data && response.data.features) || []).forEach((feature) => this.add(feature));
+                    this.fit();
+                })
+                .catch((e) => {
+                    console.warn('Landmark: could not load the shapes.', e);
+                });
+        }
+
+        add(feature) {
+            const source = this.config.sources.find((s) => s.uid === feature.properties.source);
+
+            if (!source) {
+                return;
+            }
+
+            const shapeStyle = { color: source.colour, weight: 1.5, opacity: 0.9, fillColor: source.colour, fillOpacity: 0.2 };
+            const pointStyle = { radius: 5, color: '#fff', weight: 1.5, fillColor: source.colour, fillOpacity: 1 };
+
+            L.geoJSON(feature, {
+                renderer: this.renderer,
+                style: shapeStyle,
+                pointToLayer: (point, latlng) => L.circleMarker(latlng, Object.assign({ renderer: this.renderer }, pointStyle)),
+            }).getLayers().forEach((layer) => {
+                const isPoint = layer instanceof L.CircleMarker;
+
+                layer.bindTooltip(feature.properties.title || source.label, { direction: 'top', sticky: true });
+                layer.on('mouseover', () => layer.setStyle(isPoint ? { weight: 3 } : { weight: 3, fillOpacity: 0.35 }));
+                layer.on('mouseout', () => layer.setStyle(isPoint ? pointStyle : shapeStyle));
+                layer.on('dblclick', (e) => {
+                    // Kept from the map, which would otherwise zoom in as well
+                    L.DomEvent.stop(e);
+                    this.edit(feature.properties);
+                });
+
+                this.sources[source.uid].push(layer);
+
+                if (!this.hidden[source.uid]) {
+                    layer.addTo(this.map);
+                }
+            });
+        }
+
+        /** Frames the shapes once, on the first load, and leaves the view alone after that. */
+        fit() {
+            if (this.fitted) {
+                return;
+            }
+
+            const layers = [].concat(...Object.values(this.sources));
+
+            if (!layers.length) {
+                return;
+            }
+
+            const bounds = L.featureGroup(layers).getBounds();
+
+            if (bounds.isValid()) {
+                this.fitted = true;
+                this.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 17, animate: false });
+            }
+        }
+
+        edit(properties) {
+            if (!properties.id) {
+                return;
+            }
+
+            Craft.createElementEditor('craft\\elements\\Entry', {
+                elementId: properties.id,
+                siteId: properties.siteId,
+                onSaveElement: () => this.load(),
+            });
+        }
+    }
+
     function geometryOf(parsed) {
         if (!parsed || typeof parsed !== 'object') {
             return null;
@@ -707,4 +917,5 @@
 
     window.Landmark = window.Landmark || {};
     window.Landmark.Field = Field;
+    window.Landmark.Overview = Overview;
 })();

@@ -39,6 +39,10 @@ A field can also draw other entries' shapes behind its own, so you can line thin
 - **Only From Entries Sharing**. A relation both entries have, such as a Year field, so a field only shows shapes from entries related to the same thing. The editor gets a picker to look at another one. Leave it blank to show them all.
 - **Most Shapes To Show**. A cap, 250 by default.
 
+### Overview map
+
+Turn on **Overview Map** in the plugin settings to add a **Map** page to the control panel. It shows every shape from a field's **Show Shapes From** sources at once, in their colours, with a picker for its **Only From Entries Sharing** relation. The menu beside the title switches between fields that have sources. Double-click a shape or marker to edit its entry in a slideout, and the map redraws when you save. It needs the Access Landmark permission, and only shows entries you can view.
+
 ## Usage
 
 Add a **Landmark** field to an entry type, then draw.
