@@ -41,7 +41,6 @@
             this.map = L.map(this.container.querySelector('.landmark-map'), {
                 center: c.centre,
                 zoom: c.zoom,
-                scrollWheelZoom: 'center',
             });
 
             this.basemap = L.tileLayer(c.basemapUrl, {
