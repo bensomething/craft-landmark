@@ -38,6 +38,7 @@ class ContextController extends Controller
             }
         }
 
+        $elements = Craft::$app->getElements();
         $features = [];
 
         foreach ($uids as $uid) {
@@ -60,6 +61,10 @@ class ContextController extends Controller
                     continue;
                 }
 
+                if (!$elements->canView($entry)) {
+                    continue;
+                }
+
                 $value = $entry->getFieldValue($handle);
 
                 if (!$value instanceof Shape || $value->getIsEmpty()) {
@@ -69,6 +74,8 @@ class ContextController extends Controller
                 $features[] = $value->feature([
                     'source' => $uid,
                     'title' => $entry->title,
+                    'id' => $entry->id,
+                    'siteId' => $entry->siteId,
                 ]);
             }
         }
