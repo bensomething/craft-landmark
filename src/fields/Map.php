@@ -21,7 +21,7 @@ use yii\db\Schema;
 
 class Map extends Field
 {
-    /** @var string[] Any of 'marker', 'line', 'polygon' */
+    /** @var string[] Any of 'marker', 'line', 'polygon', 'rectangle', 'circle', 'dot', 'text' */
     public array $shapes = ['polygon'];
 
     public bool $allowMultiple = false;
@@ -440,10 +440,10 @@ class Map extends Field
             'drawMarker' => in_array('marker', $this->shapes, true),
             'drawPolyline' => in_array('line', $this->shapes, true),
             'drawPolygon' => in_array('polygon', $this->shapes, true),
-            'drawCircle' => false,
-            'drawCircleMarker' => false,
-            'drawRectangle' => false,
-            'drawText' => false,
+            'drawRectangle' => in_array('rectangle', $this->shapes, true),
+            'drawCircle' => in_array('circle', $this->shapes, true),
+            'drawText' => in_array('text', $this->shapes, true),
+            'drawCircleMarker' => in_array('dot', $this->shapes, true),
         ];
     }
 

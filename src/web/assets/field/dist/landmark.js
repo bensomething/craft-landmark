@@ -7,10 +7,32 @@
         marker: ['Point', 'MultiPoint'],
         line: ['LineString', 'MultiLineString'],
         polygon: ['Polygon', 'MultiPolygon'],
+        // A rectangle is a polygon, and a circle or a label is a point with its own keys
+        rectangle: ['Polygon', 'MultiPolygon'],
+        circle: ['Point'],
+        dot: ['Point'],
+        text: ['Point'],
     };
 
     /** What the field and the overview map share: the basemaps, icons, sizing and remembered choices. */
     class MapBase {
+        /** What a drawn shape carries beyond its geometry: a circle's radius, a label's words. */
+        drawnExtras(layer) {
+            const extras = {};
+
+            if (typeof layer.getRadius === 'function') {
+                extras[layer instanceof L.CircleMarker && !(layer instanceof L.Circle) ? 'dotRadius' : 'radius'] = Math.round(layer.getRadius());
+            }
+
+            const text = layer.pm && typeof layer.pm.getText === 'function' ? layer.pm.getText() : null;
+
+            if (text) {
+                extras.text = text;
+            }
+
+            return extras;
+        }
+
         /** Craft's own icons, with a text glyph as a fallback. */
         icon(name) {
             const icons = this.config.icons || {};
@@ -195,15 +217,22 @@
                 cutPolygon: editing.includes('cut'),
                 removalMode: editing.includes('remove'),
                 rotateMode: editing.includes('rotate'),
-                drawCircle: false,
-                drawCircleMarker: false,
-                drawRectangle: false,
-                drawText: false,
             }, this.drawTools()));
 
             this.map.pm.setGlobalOptions({ snappable: true, snapDistance: 15 });
 
             this.map.on('pm:create', (e) => {
+                // Cutting draws a shape of its own, which pm:cut deals with
+                if (e.shape === 'Cut') {
+                    return;
+                }
+
+                const extras = this.drawnExtras(e.layer);
+
+                if (Object.keys(extras).length) {
+                    e.layer.landmarkExtras = extras;
+                }
+
                 if (!this.config.allowMultiple) {
                     this.layers.eachLayer((layer) => {
                         if (layer !== e.layer) {
@@ -212,12 +241,33 @@
                     });
                 }
                 this.layers.addLayer(e.layer);
-                this.preview(e.layer, {});
+                this.preview(e.layer, extras);
                 this.watch(e.layer);
                 this.sync();
             });
 
             this.map.on('pm:remove', () => this.sync());
+
+            // What's left of a cut shape takes the original's place, keys and all
+            this.map.on('pm:cut', (e) => {
+                const extras = e.originalLayer.landmarkExtras;
+
+                this.layers.removeLayer(e.originalLayer);
+
+                if (e.layer) {
+                    this.map.removeLayer(e.layer);
+
+                    if (extras) {
+                        e.layer.landmarkExtras = extras;
+                    }
+
+                    this.layers.addLayer(e.layer);
+                    this.preview(e.layer, extras || {});
+                    this.watch(e.layer);
+                }
+
+                this.sync();
+            });
 
             this.initBasemaps();
         }
@@ -229,6 +279,10 @@
                 drawMarker: shapes.includes('marker'),
                 drawPolyline: shapes.includes('line'),
                 drawPolygon: shapes.includes('polygon'),
+                drawRectangle: shapes.includes('rectangle'),
+                drawCircle: shapes.includes('circle'),
+                drawCircleMarker: shapes.includes('dot'),
+                drawText: shapes.includes('text'),
             };
         }
 
@@ -523,7 +577,15 @@
             const shapes = geometry.type === 'GeometryCollection' ? geometry.geometries : [geometry];
 
             shapes.forEach((shape) => {
-                L.geoJSON(shape).getLayers().forEach((layer) => unpack(layer, this.extras(shape)));
+                const extras = this.extras(shape);
+                const rebuilt = this.rebuild(shape, extras);
+
+                if (rebuilt) {
+                    unpack(rebuilt, extras);
+                    return;
+                }
+
+                L.geoJSON(shape).getLayers().forEach((layer) => unpack(layer, extras));
             });
 
             if (fit && this.layers.getLayers().length) {
@@ -540,9 +602,41 @@
             }
         }
 
+        /** A circle or a label from a point that carries its radius or its words. */
+        rebuild(shape, extras) {
+            if (shape.type !== 'Point') {
+                return null;
+            }
+
+            const [lng, lat] = shape.coordinates;
+
+            if (extras.radius) {
+                return L.circle([lat, lng], { radius: extras.radius });
+            }
+
+            if (extras.dotRadius) {
+                return L.circleMarker([lat, lng], { radius: extras.dotRadius });
+            }
+
+            if (extras.text) {
+                return L.marker([lat, lng], { textMarker: true, text: extras.text });
+            }
+
+            return null;
+        }
+
         watch(layer) {
-            ['pm:edit', 'pm:dragend', 'pm:rotateend', 'pm:markerdragend'].forEach((event) => {
-                layer.on(event, () => this.sync());
+            ['pm:edit', 'pm:dragend', 'pm:rotateend', 'pm:markerdragend', 'pm:textchange'].forEach((event) => {
+                layer.on(event, () => {
+                    // A resized circle or a retyped label keeps what GeoJSON has no room for
+                    const extras = Object.assign({}, layer.landmarkExtras, this.drawnExtras(layer));
+
+                    if (Object.keys(extras).length) {
+                        layer.landmarkExtras = extras;
+                    }
+
+                    this.sync();
+                });
             });
         }
 

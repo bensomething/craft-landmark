@@ -19,42 +19,12 @@
         { label: 'Marker'|t('landmark'), value: 'marker' },
         { label: 'Line'|t('landmark'), value: 'line' },
         { label: 'Shape'|t('landmark'), value: 'polygon' },
+        { label: 'Rectangle'|t('landmark'), value: 'rectangle' },
+        { label: 'Circle'|t('landmark'), value: 'circle' },
+        { label: 'Dot'|t('landmark'), value: 'dot' },
+        { label: 'Label'|t('landmark'), value: 'text' },
     ],
     required: true,
-}) }}
-
-{{ forms.lightswitchField({
-    label: 'Allow More Than One'|t('landmark'),
-    instructions: 'Save several shapes together, as a multi-part geometry.'|t('landmark'),
-    id: 'allowMultiple',
-    name: 'allowMultiple',
-    on: field.allowMultiple,
-}) }}
-
-{{ forms.textField({
-    label: 'Default Latitude'|t('landmark'),
-    instructions: 'Where this field’s map opens, before anything is drawn. Leave blank to use the plugin’s setting.'|t('landmark'),
-    id: 'defaultLat',
-    name: 'defaultLat',
-    value: field.defaultLat,
-    size: 12,
-}) }}
-
-{{ forms.textField({
-    label: 'Default Longitude'|t('landmark'),
-    id: 'defaultLng',
-    name: 'defaultLng',
-    value: field.defaultLng,
-    size: 12,
-}) }}
-
-{{ forms.textField({
-    label: 'Default Zoom'|t('landmark'),
-    id: 'defaultZoom',
-    name: 'defaultZoom',
-    value: field.defaultZoom,
-    type: 'number',
-    size: 4,
 }) }}
 
 {{ forms.lightswitchField({
