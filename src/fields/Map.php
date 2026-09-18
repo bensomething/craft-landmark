@@ -2,6 +2,7 @@
 
 namespace bensomething\landmark\fields;
 
+use bensomething\landmark\models\Settings;
 use bensomething\landmark\models\Shape;
 use bensomething\landmark\Plugin;
 use bensomething\landmark\web\assets\field\LandmarkFieldAsset;
@@ -24,6 +25,12 @@ class Map extends Field
     public array $shapes = ['polygon'];
 
     public bool $allowMultiple = false;
+
+    /** Whether this field picks its own toolbar buttons rather than the plugin's. */
+    public bool $ownEditingTools = false;
+
+    /** @var string[] This field's own Geoman toolbar buttons, used when it picks its own. */
+    public array $editingTools = ['edit', 'drag', 'remove', 'rotate'];
 
     /** Null falls back to the plugin's settings. */
     public ?float $defaultLat = null;
@@ -62,7 +69,7 @@ class Map extends Field
         }
 
         // An empty checkbox list posts an empty string
-        foreach (['contextFields', 'contextRelations'] as $key) {
+        foreach (['contextFields', 'contextRelations', 'editingTools'] as $key) {
             if (array_key_exists($key, $config)) {
                 $config[$key] = array_values(array_filter((array)$config[$key]));
             }
@@ -115,6 +122,7 @@ class Map extends Field
             [['defaultZoom'], 'integer', 'min' => 0, 'max' => 22],
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
             [['contextLimit'], 'integer', 'min' => 1, 'max' => 2000],
+            [['editingTools'], 'each', 'rule' => ['in', 'range' => array_keys(Settings::EDITING_TOOLS)]],
         ]);
     }
 
@@ -256,6 +264,7 @@ class Map extends Field
         return Craft::$app->getView()->renderTemplate('landmark/_field/settings.twig', [
             'field' => $this,
             'sourceOptions' => $this->contextSourceOptions(),
+            'toolOptions' => self::editingToolOptions(),
         ]);
     }
 
@@ -272,6 +281,7 @@ class Map extends Field
             'geometry' => $value instanceof Shape ? $value->geometry : null,
             'shapes' => $this->shapes,
             'allowMultiple' => $this->allowMultiple,
+            'editingTools' => $this->ownEditingTools ? $this->editingTools : $settings->editingTools,
             'basemapUrl' => $settings->tileUrl(),
             'basemapAttribution' => $settings->attribution(),
             'hasSatellite' => $settings->resolvedGoogleApiKey() !== null,
@@ -405,6 +415,22 @@ class Map extends Field
             'selected' => $selected,
             'options' => $options,
         ];
+    }
+
+    /**
+     * The Geoman toolbar buttons a field or the plugin can show.
+     *
+     * @return array<int, array{label: string, value: string}>
+     */
+    public static function editingToolOptions(): array
+    {
+        $options = [];
+
+        foreach (Settings::EDITING_TOOLS as $value => $label) {
+            $options[] = ['label' => Craft::t('landmark', $label), 'value' => $value];
+        }
+
+        return $options;
     }
 
     /** @return array<string, bool> */

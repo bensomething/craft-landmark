@@ -186,13 +186,15 @@
                 return;
             }
 
+            const editing = c.editingTools || [];
+
             this.map.pm.addControls(Object.assign({
                 position: 'topleft',
-                editMode: true,
-                dragMode: true,
-                removalMode: true,
-                rotateMode: true,
-                cutPolygon: false,
+                editMode: editing.includes('edit'),
+                dragMode: editing.includes('drag'),
+                cutPolygon: editing.includes('cut'),
+                removalMode: editing.includes('remove'),
+                rotateMode: editing.includes('rotate'),
                 drawCircle: false,
                 drawCircleMarker: false,
                 drawRectangle: false,

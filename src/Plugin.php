@@ -79,6 +79,7 @@ class Plugin extends \craft\base\Plugin
     {
         return Craft::$app->getView()->renderTemplate('landmark/_settings', [
             'settings' => $this->getSettings(),
+            'toolOptions' => MapField::editingToolOptions(),
         ]);
     }
 }

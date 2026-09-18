@@ -135,6 +135,15 @@
     on: settings.overviewMap,
 }) }}
 
+{{ forms.checkboxGroupField({
+    label: 'Editing Tools'|t('landmark'),
+    instructions: 'The toolbar buttons every field shows, unless it picks its own.'|t('landmark'),
+    id: 'editingTools',
+    name: 'editingTools',
+    values: settings.editingTools,
+    options: toolOptions,
+}) }}
+
 {{ forms.textField({
     label: 'Shape Opacity'|t('landmark'),
     instructions: 'How solid a shape is drawn, from 0 to 1. A shape can carry its own `opacity` to override this.'|t('landmark'),

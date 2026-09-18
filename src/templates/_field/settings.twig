@@ -57,6 +57,59 @@
     size: 4,
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Own Editing Tools'|t('landmark'),
+    instructions: 'Pick this field’s toolbar buttons rather than the plugin’s.'|t('landmark'),
+    id: 'ownEditingTools',
+    name: 'ownEditingTools',
+    on: field.ownEditingTools,
+    toggle: 'editing-tools',
+}) }}
+
+<div id="editing-tools" class="{{ field.ownEditingTools ? '' : 'hidden' }}">
+    {{ forms.checkboxGroupField({
+        label: 'Editing Tools'|t('landmark'),
+        id: 'editingTools',
+        name: 'editingTools',
+        values: field.editingTools,
+        options: toolOptions,
+    }) }}
+</div>
+
+{{ forms.lightswitchField({
+    label: 'Allow More Than One'|t('landmark'),
+    instructions: 'Save several shapes together, as a multi-part geometry.'|t('landmark'),
+    id: 'allowMultiple',
+    name: 'allowMultiple',
+    on: field.allowMultiple,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Latitude'|t('landmark'),
+    instructions: 'Where this field’s map opens, before anything is drawn. Leave blank to use the plugin’s setting.'|t('landmark'),
+    id: 'defaultLat',
+    name: 'defaultLat',
+    value: field.defaultLat,
+    size: 12,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Longitude'|t('landmark'),
+    id: 'defaultLng',
+    name: 'defaultLng',
+    value: field.defaultLng,
+    size: 12,
+}) }}
+
+{{ forms.textField({
+    label: 'Default Zoom'|t('landmark'),
+    id: 'defaultZoom',
+    name: 'defaultZoom',
+    value: field.defaultZoom,
+    type: 'number',
+    size: 4,
+}) }}
+
 <hr>
 
 {% set sourceRows %}

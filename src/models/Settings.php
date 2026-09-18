@@ -8,6 +8,15 @@ use craft\helpers\App;
 
 class Settings extends Model
 {
+    /** @var array<string, string> The Geoman toolbar buttons that can be shown, and what they do. */
+    public const EDITING_TOOLS = [
+        'edit' => 'Edit',
+        'drag' => 'Drag',
+        'cut' => 'Cut',
+        'remove' => 'Remove',
+        'rotate' => 'Rotate',
+    ];
+
     public const BASEMAP_OSM = 'osm';
     public const BASEMAP_CARTO = 'carto';
     public const BASEMAP_OTHER = 'other';
@@ -41,6 +50,11 @@ class Settings extends Model
     /** How solid a shape is drawn, unless it carries an opacity of its own. */
     public float $shapeOpacity = 0.1;
 
+    /**
+     * @var string[] Geoman toolbar buttons every field shows: any of 'edit', 'drag', 'cut', 'remove', 'rotate'.
+     */
+    public array $editingTools = ['edit', 'drag', 'remove', 'rotate'];
+
     /** Adds a Map page to the control panel, showing a field's sources all at once. */
     public bool $overviewMap = false;
 
@@ -73,6 +87,7 @@ class Settings extends Model
             [['defaultZoom'], 'integer', 'min' => 0, 'max' => 22],
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
             [['shapeOpacity'], 'number', 'min' => 0, 'max' => 1],
+            [['editingTools'], 'each', 'rule' => ['in', 'range' => array_keys(self::EDITING_TOOLS)]],
         ];
     }
 
@@ -141,6 +156,7 @@ class Settings extends Model
             'defaultZoom' => Craft::t('landmark', 'Default Zoom'),
             'height' => Craft::t('landmark', 'Map Height'),
             'shapeOpacity' => Craft::t('landmark', 'Shape Opacity'),
+            'editingTools' => Craft::t('landmark', 'Editing Tools'),
             'overviewMap' => Craft::t('landmark', 'Overview Map'),
         ];
     }
