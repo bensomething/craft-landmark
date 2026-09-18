@@ -66,6 +66,40 @@
             }
         }
 
+        /**
+         * Scrolling over a map scrolls the page, as it would anywhere else.
+         * Zooming asks for the modifier key, and a hint says so when it is missing.
+         */
+        gateZoom() {
+            const container = this.map.getContainer();
+            const apple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+            const hint = L.DomUtil.create('div', 'landmark-gesture', container);
+            const held = (e) => (apple ? e.metaKey : e.ctrlKey);
+
+            hint.textContent = `Use ${apple ? '⌘' : 'Ctrl'} + scroll to zoom`;
+            this.map.scrollWheelZoom.disable();
+
+            // Leaflet does the zooming, so it is turned on only while the key is down
+            const watch = (e) => {
+                held(e) ? this.map.scrollWheelZoom.enable() : this.map.scrollWheelZoom.disable();
+            };
+
+            window.addEventListener('keydown', watch);
+            window.addEventListener('keyup', watch);
+            window.addEventListener('blur', () => this.map.scrollWheelZoom.disable());
+
+            container.addEventListener('wheel', (e) => {
+                if (held(e)) {
+                    hint.classList.remove('is-visible');
+                    return;
+                }
+
+                hint.classList.add('is-visible');
+                clearTimeout(this.hintTimer);
+                this.hintTimer = setTimeout(() => hint.classList.remove('is-visible'), 1300);
+            }, { passive: true });
+        }
+
         /** A layer switcher for whichever imagery is set up, next to the basemap. */
         initBasemaps() {
             const esri = this.config.esriImagery
@@ -201,6 +235,7 @@
 
             this.layers = L.featureGroup().addTo(this.map);
             this.watchSize();
+            this.gateZoom();
             this.draw(c.geometry, true);
 
             if (!this.map.pm) {
@@ -820,6 +855,7 @@
             });
 
             this.watchSize();
+            this.gateZoom();
             this.initBasemaps();
             this.addControl();
         }

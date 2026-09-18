@@ -138,6 +138,27 @@
     display: none;
 }
 
+/* Says how to zoom, while the page is being scrolled over the map */
+.landmark-gesture {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    background-color: rgb(0 0 0 / 0.5);
+    color: var(--white);
+    font-size: 14px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+}
+
+.landmark-gesture.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
 .landmark-error {
     margin: 0;
     padding: 6px 10px;

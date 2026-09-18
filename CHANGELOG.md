@@ -1,5 +1,11 @@
 # Release Notes for Landmark
 
+## Unreleased
+
+### Changed
+
+- Scrolling over a map now scrolls the page. Zooming takes Cmd or Ctrl and the wheel, and a hint says so.
+
 ## 0.2.0 - 2026-09-18
 
 ### Added
