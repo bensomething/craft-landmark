@@ -294,7 +294,7 @@ class Map extends Field
             'opacity' => $settings->shapeOpacity,
             'context' => $this->contextConfig($element),
             'icons' => [
-                'code' => Cp::iconSvg('code'),
+                'code' => Cp::iconSvg('brackets-curly'),
                 'map' => Cp::iconSvg('map'),
                 'layers' => Cp::iconSvg('layer-group'),
             ],
