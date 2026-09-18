@@ -1,5 +1,12 @@
 # Release Notes for Landmark
 
+## 0.2.0 - 2026-09-18
+
+### Added
+
+- Rectangle, circle, dot and label tools, alongside marker, line and shape. A circle keeps its radius, a dot its size and a label its words, written against the shape.
+- An Editing Tools setting for the toolbar's Edit, Drag, Cut, Remove and Rotate buttons, set for every field and overridden per field.
+
 ## 0.1.0 - 2026-09-17
 
 ### Added

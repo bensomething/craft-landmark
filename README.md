@@ -31,7 +31,10 @@ In **Settings → Plugins → Landmark**:
 - **Default Latitude**, **Default Longitude**, **Default Zoom**. Where a map opens before anything is drawn.
 - **Map Height**.
 
-Each field chooses its own tools (marker, line, shape), whether more than one shape is allowed, and can override the centre, zoom and height.
+Each field chooses its own tools (marker, line, shape, rectangle, circle, dot, label), whether more than one shape is allowed, and can override the centre, zoom and height.
+
+- **Editing Tools**. Which of the toolbar's Edit, Drag, Cut, Remove and Rotate buttons to show. Set once in the plugin settings, and a field can pick its own instead.
+- A circle, dot or label is stored as a point with its `radius`, `dotRadius` or `text` written against it, since GeoJSON has no room for them. They're drawn back as themselves when the field reopens.
 
 A field can also draw other entries' shapes behind its own, so you can line things up:
 
