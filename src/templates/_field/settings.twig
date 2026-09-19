@@ -54,14 +54,6 @@
     on: field.allowMultiple,
 }) }}
 
-{{ forms.lightswitchField({
-    label: 'Trace An Image'|t('landmark'),
-    instructions: 'Drop a picture on the map and drag its corners to line it up, then draw over it. The picture stays in this browser and is never saved with the shape.'|t('landmark'),
-    id: 'traceImage',
-    name: 'traceImage',
-    on: field.traceImage,
-}) }}
-
 {{ forms.textField({
     label: 'Default Latitude'|t('landmark'),
     instructions: 'Where this field’s map opens, before anything is drawn. Leave blank to use the plugin’s setting.'|t('landmark'),
@@ -93,26 +85,40 @@
 {% set sourceRows %}
     {# Posts an empty value when nothing is ticked, so the setting can be cleared #}
     {{ hiddenInput('contextFields', '') }}
-    <div class="flex flex-col gap-s">
-        {% for option in sourceOptions %}
-            <div class="flex flex-nowrap items-center gap-s">
-                <div class="flex-grow">
-                    {{ forms.checkbox({
-                        label: option.label,
-                        name: 'contextFields[]',
-                        value: option.value,
-                        checked: option.value in field.contextFields,
-                    }) }}
-                </div>
-                {{ forms.color({
-                    id: 'contextColour' ~ loop.index,
-                    name: 'contextColours[' ~ option.value ~ ']',
-                    value: field.contextColours[option.value] ?? '',
-                    small: true,
-                }) }}
-            </div>
-        {% endfor %}
-    </div>
+    <table class="data fullwidth">
+        <thead>
+            <tr>
+                <th scope="col">{{ 'Shapes'|t('landmark') }}</th>
+                <th scope="col" class="thin">{{ 'Show'|t('landmark') }}</th>
+                <th scope="col" class="thin">{{ 'Colour'|t('landmark') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for option in sourceOptions %}
+                <tr>
+                    <th scope="row" data-title="{{ 'Shapes'|t('landmark') }}">
+                        <label for="contextField{{ loop.index }}">{{ option.label }}</label>
+                    </th>
+                    <td data-title="{{ 'Show'|t('landmark') }}">
+                        {{ forms.checkbox({
+                            id: 'contextField' ~ loop.index,
+                            name: 'contextFields[]',
+                            value: option.value,
+                            checked: option.value in field.contextFields,
+                        }) }}
+                    </td>
+                    <td data-title="{{ 'Colour'|t('landmark') }}">
+                        {{ forms.color({
+                            id: 'contextColour' ~ loop.index,
+                            name: 'contextColours[' ~ option.value ~ ']',
+                            value: field.contextColours[option.value] ?? '',
+                            small: true,
+                        }) }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% endset %}
 
 {{ forms.field({

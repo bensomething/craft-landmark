@@ -1,5 +1,11 @@
 # Release Notes for Landmark
 
+## 0.3.0 - 2026-09-19
+
+### Fixed
+
+- The Show Shapes From setting's rows are a table now, so a field's name, its toggle and its colour line up with one another.
+
 ## 0.2.3 - 2026-09-19
 
 ### Added
