@@ -48,13 +48,17 @@ class ContextController extends Controller
             // A query for each handle the field goes by, as a layout can give it one of its own
             foreach (MapField::sourceQueries((string)$uid, $uids) as $query) {
                 $query->limit($limit);
+                $queries = [$query];
 
                 if ($relationIds !== [] && $related !== []) {
+                    // What the others relate to counts as well, such as the year's own entry,
+                    // which holds shapes of its own but relates to itself through nothing
+                    $queries[] = (clone $query)->id($related);
                     // By id, since a handle can belong to more than one field across layouts
                     $query->relatedTo(['targetElement' => $related, 'field' => $relationIds]);
                 }
 
-                foreach ($query->all() as $entry) {
+                foreach (array_merge(...array_map(fn($each) => $each->all(), $queries)) as $entry) {
                     if (in_array($entry->id, $exclude, true) || in_array($entry->getCanonicalId(), $exclude, true)) {
                         continue;
                     }

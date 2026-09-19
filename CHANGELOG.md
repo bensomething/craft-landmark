@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The entry a shape's neighbours relate to was left out of the shapes drawn behind a field, so a year holding shapes of its own never showed while filtering by that year. It relates to itself through nothing, and is drawn now.
 - A field a layout had renamed was missed by the overview map and by the shapes drawn behind a field, both of which went looking under the field's own handle. Every handle a field goes by is searched now, and an entry is read by the one its own layout uses.
 - Pasting a FeatureCollection into the GeoJSON panel kept only its first feature. Every feature is kept now, and what a feature's properties say is kept against its shape.
 
