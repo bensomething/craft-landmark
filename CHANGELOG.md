@@ -1,6 +1,6 @@
 # Release Notes for Landmark
 
-## Unreleased
+## 0.2.2 - 2026-09-19
 
 ### Fixed
 
