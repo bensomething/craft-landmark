@@ -217,6 +217,609 @@
             this.initMap();
             this.initCodePanel();
             this.initContext();
+            this.initTrace();
+        }
+
+        /**
+         * A picture to draw over: dropped on the map, dragged by its corners until it lines up with
+         * what is underneath, then drawn over. It is kept in this browser rather than saved with the
+         * field, being a way of working rather than anything the entry should carry.
+         */
+        initTrace() {
+            if (!this.config.trace) {
+                return;
+            }
+
+            const map = this.container.querySelector('.landmark-map');
+
+            ['dragenter', 'dragover'].forEach((name) => map.addEventListener(name, (e) => {
+                if ([...e.dataTransfer.types].includes('Files')) {
+                    e.preventDefault();
+                    map.classList.add('landmark-dropping');
+                }
+            }));
+
+            ['dragleave', 'drop'].forEach((name) => map.addEventListener(name, () => map.classList.remove('landmark-dropping')));
+
+            map.addEventListener('drop', (e) => {
+                const file = [...(e.dataTransfer.files || [])].find((each) => each.type.startsWith('image/'));
+
+                if (!file) {
+                    return;
+                }
+
+                e.preventDefault();
+                this.trace(file);
+            });
+
+            kept(this.traceKey()).then((saved) => saved && this.trace(saved.image, saved.corners));
+        }
+
+        /** What this field's picture is kept under, which is the field on this entry. */
+        traceKey() {
+            return `${this.config.trace.element ?? 'new'}:${this.config.name}`;
+        }
+
+        /**
+         * Where a picture goes when it is first dropped: the middle of the view, as large as fits
+         * while keeping its own proportions, so it arrives the shape it really is.
+         */
+        async placeFor(image) {
+            const size = this.map.getSize();
+            const shape = await new Promise((resolve) => {
+                const measuring = new Image();
+
+                measuring.onload = () => resolve(measuring.width / measuring.height);
+                measuring.onerror = () => resolve(1);
+                measuring.src = URL.createObjectURL(image);
+            });
+            const room = 0.7;
+            const wide = Math.min(size.x * room, size.y * room * shape);
+            const tall = wide / shape;
+            const left = (size.x - wide) / 2;
+            const top = (size.y - tall) / 2;
+
+            return [[left, top], [left + wide, top], [left, top + tall], [left + wide, top + tall]]
+                .map(([x, y]) => this.map.containerPointToLatLng([x, y]));
+        }
+
+        /** Puts a picture on the map, over the view or back where it was left. */
+        async trace(image, corners = null) {
+            await loadOnce(this.config.trace.scripts, this.config.trace.styles);
+
+            if (this.tracing) {
+                this.map.removeLayer(this.tracing);
+            }
+
+            const placed = corners ?? await this.placeFor(image);
+
+            // Under the shapes and the handles, so neither is hidden by what they are drawn from.
+            // The panes here are all of a level, so it is their order that decides, and a new one
+            // would otherwise be added last of all.
+            if (!this.map.getPane('tracing')) {
+                const pane = this.map.createPane('tracing');
+                const panes = this.map.getPanes();
+
+                pane.style.zIndex = 350;
+                panes.mapPane.insertBefore(pane, panes.overlayPane);
+            }
+
+            // Only the warping is the library's: the handles and what a drag does are this field's,
+            // so where a drag starts can decide whether it resizes, turns, leans or moves
+            this.tracing = L.distortableImageOverlay(URL.createObjectURL(image), {
+                corners: placed.map((corner) => L.latLng(corner)),
+                mode: 'lock',
+                selected: false,
+                pane: 'tracing',
+                suppressToolbar: true,
+            }).addTo(this.map);
+
+            this.tracing.editing?.disable();
+            this.traceImage = image;
+
+            this.traceControl();
+            this.traceHandles();
+            this.traceRefresh();
+
+            // Kept as it is moved, so it is still lined up next time the entry is opened
+            ['update', 'edit', 'dragend'].forEach((name) => this.tracing.on(name, () => this.traceKeep()));
+
+            this.traceKeep();
+        }
+
+        /**
+         * Editing gives the picture its corner handles and takes the mouse while it is over it.
+         * Left off, the picture is only something to look at and the drawing tools have the map.
+         */
+        traceEditing(on) {
+            this.traceEdits = on;
+
+            this.traceHandles();
+
+            if (on && !this.traceWatching) {
+                this.traceWatching = true;
+
+                const map = this.map.getContainer();
+
+                map.addEventListener('pointerdown', (e) => this.traceTake(e));
+                map.addEventListener('pointermove', (e) => this.traceHover(e));
+
+                // The usual keys, while the picture is the thing being edited and nothing is being typed
+                window.addEventListener('keydown', (e) => {
+                    const typing = /^(input|textarea|select)$/i.test(document.activeElement?.tagName ?? '');
+
+                    if (!this.traceEdits || typing || !(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') {
+                        return;
+                    }
+
+                    e.preventDefault();
+                    this.traceGo(e.shiftKey ? 'on' : 'back');
+                });
+            }
+
+            if (!on) {
+                this.map.getContainer().style.cursor = '';
+            }
+        }
+
+        /** A mark on each corner and each side, kept on them as the picture and the map move. */
+        traceHandles() {
+            [...(this.traceMarks ?? []), ...(this.traceLines ?? [])].forEach((each) => this.map.removeLayer(each));
+            this.traceMarks = [];
+            this.traceLines = [];
+
+            if (!this.traceEdits || !this.tracing) {
+                return;
+            }
+
+            // A pane of their own, added after all the others, so nothing the picture or the
+            // drawing tools do with their own stacking can bury the handles
+            if (!this.map.getPane('handles')) {
+                this.map.createPane('handles').style.zIndex = 700;
+            }
+
+            const mark = (where, kind, size) => L.marker(where, {
+                icon: L.divIcon({ className: kind, iconSize: [size, size] }),
+                pane: 'handles',
+                interactive: false,
+                keyboard: false,
+            }).addTo(this.map);
+            const corners = this.tracing.getCorners();
+
+            // An edge apiece, so the one being pointed at can be picked out from the others
+            this.traceEdging ??= L.svg({ pane: 'handles' });
+            this.traceLines = SIDES.map(([first, second]) => L.polyline([corners[first], corners[second]], {
+                className: 'landmark-edge',
+                renderer: this.traceEdging,
+                pane: 'handles',
+                interactive: false,
+                weight: 2,
+            }).addTo(this.map));
+
+            this.traceMarks = [
+                ...corners.map((corner) => mark(corner, 'landmark-corner', 15)),
+                ...this.traceSides().map(({ middle }) => mark(this.map.containerPointToLatLng(middle), 'landmark-side', 11)),
+            ];
+        }
+
+        /** Moves the handles and edges onto the picture as it is now. */
+        traceRefresh() {
+            // The library puts the picture at the very top of everything, which would bury its
+            // own handles. It belongs in its pane, under the shapes and under them.
+            const element = this.tracing?.getElement();
+
+            if (element && element.style.zIndex !== '1') {
+                element.style.zIndex = '1';
+            }
+
+            if (!this.tracing || !this.traceMarks?.length) {
+                return;
+            }
+
+            const corners = this.tracing.getCorners();
+
+            corners.forEach((corner, index) => this.traceMarks[index].setLatLng(corner));
+            this.traceSides().forEach(({ middle }, index) => this.traceMarks[4 + index].setLatLng(this.map.containerPointToLatLng(middle)));
+            (this.traceLines ?? []).forEach((line, index) => line.setLatLngs([corners[SIDES[index][0]], corners[SIDES[index][1]]]));
+        }
+
+        /** Picks out whichever handle or edge the pointer is on. */
+        traceLit(doing, which) {
+            (this.traceMarks ?? []).forEach((mark, index) => {
+                const lit = (doing === 'size' && index === which) || (doing === 'side' && index === 4 + which);
+
+                mark.getElement()?.classList.toggle('is-lit', lit);
+            });
+
+            (this.traceLines ?? []).forEach((line, index) => {
+                const beside = doing === 'side' && index === which;
+
+                line.getElement()?.classList.toggle('is-lit', beside || doing === 'move');
+            });
+        }
+
+        /**
+         * The middle of each side, and which corners a drag from there moves. A side is pulled out
+         * from or in towards the one opposite, which stays where it is.
+         */
+        traceSides() {
+            const { points } = this.traceQuad();
+
+            return SIDES.map(([first, second, anchorFirst, anchorSecond]) => ({
+                moving: [first, second],
+                anchors: [anchorFirst, anchorSecond],
+                middle: points[first].add(points[second]).divideBy(2),
+                anchor: points[anchorFirst].add(points[anchorSecond]).divideBy(2),
+            }));
+        }
+
+        /** The corners as points on the map, and the middle of them. */
+        traceQuad() {
+            const points = this.tracing.getCorners().map((corner) => this.map.latLngToContainerPoint(corner));
+            const middle = points.reduce((sum, point) => sum.add(point), L.point(0, 0)).divideBy(4);
+
+            return { points, middle };
+        }
+
+        /**
+         * Whether a point falls on the picture, worked out from where its corners are rather than
+         * from what the mouse is over, since the picture itself never takes the mouse.
+         */
+        traceInside(at) {
+            const { points } = this.traceQuad();
+            const ring = [points[0], points[1], points[3], points[2]];
+            let on = false;
+
+            for (let i = 0, j = 3; i < 4; j = i++) {
+                const above = (ring[i].y > at.y) !== (ring[j].y > at.y);
+
+                if (above && at.x < (ring[j].x - ring[i].x) * (at.y - ring[i].y) / (ring[j].y - ring[i].y) + ring[i].x) {
+                    on = !on;
+                }
+            }
+
+            return on;
+        }
+
+        /** Which corner the pointer is on, close to, or neither. */
+        traceGrip(at) {
+            const { points } = this.traceQuad();
+            let nearest = -1;
+            let away = Infinity;
+
+            points.forEach((point, index) => {
+                const gap = point.distanceTo(at);
+
+                if (gap < away) {
+                    away = gap;
+                    nearest = index;
+                }
+            });
+
+            // The handle itself, with a little slack around it
+            if (away <= 15) {
+                return { corner: nearest, doing: 'size' };
+            }
+
+            // A side, which pulls only that way
+            const side = this.traceSides()
+                .map((each, index) => ({ index, gap: each.middle.distanceTo(at) }))
+                .sort((a, b) => a.gap - b.gap)[0];
+
+            if (side.gap <= 13) {
+                return { corner: side.index, doing: 'side' };
+            }
+
+            // Just beyond a corner, where a picture is turned rather than resized. Only beyond it:
+            // a small picture has its corners close enough that its middle would count otherwise.
+            if (away <= 36 && !this.traceInside(at)) {
+                return { corner: nearest, doing: 'turn' };
+            }
+
+            return { corner: -1, doing: null };
+        }
+
+        /**
+         * The cursor for what a drag from here would do: the arrows of a resize lie along the way
+         * that corner would travel, so a turned picture shows turned arrows.
+         */
+        traceCursor(doing, corner, alt) {
+            if (doing === 'turn') {
+                return TURN_CURSOR;
+            }
+
+            if (doing === 'size' || doing === 'side') {
+                if (alt && doing === 'size') {
+                    return 'crosshair';
+                }
+
+                const { points, middle } = this.traceQuad();
+                const out = (doing === 'side' ? this.traceSides()[corner].middle : points[corner]).subtract(middle);
+                const facing = ((Math.round(Math.atan2(out.y, out.x) * 4 / Math.PI) % 8) + 8) % 8;
+
+                // The way that corner points, reading clockwise from east, the map's y running down
+                return `${['e', 'se', 's', 'sw', 'w', 'nw', 'n', 'ne'][facing]}-resize`;
+            }
+
+            return doing === 'move' ? 'move' : '';
+        }
+
+        /** The cursor says what a drag from here would do. */
+        traceHover(e) {
+            if (!this.traceEdits || !this.tracing || this.traceDrag) {
+                return;
+            }
+
+            const at = this.map.mouseEventToContainerPoint(e);
+            const { corner, doing } = this.traceGrip(at);
+            const over = doing ?? (this.traceInside(at) ? 'move' : null);
+
+            this.map.getContainer().style.cursor = this.traceCursor(over, corner, e.altKey);
+            this.traceLit(over, corner);
+        }
+
+        /** Starts a drag, which is a resize, a turn, a warp or a move, by where it began. */
+        traceTake(e) {
+            if (!this.traceEdits || !this.tracing || e.button !== 0) {
+                return;
+            }
+
+            const at = this.map.mouseEventToContainerPoint(e);
+            const { corner, doing } = this.traceGrip(at);
+            const onImage = this.traceInside(at);
+
+            if (!doing && !onImage) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            this.map.dragging.disable();
+
+            const before = this.traceWhere();
+            const { points, middle } = this.traceQuad();
+
+            this.map.getContainer().style.cursor = this.traceCursor(doing ?? 'move', corner, e.altKey);
+
+            this.traceDrag = {
+                doing: doing ?? 'move',
+                corner,
+                from: at,
+                points,
+                middle,
+                angle: Math.atan2(at.y - middle.y, at.x - middle.x),
+            };
+
+            const move = (moving) => this.traceMove(moving);
+            const stop = () => {
+                document.removeEventListener('pointermove', move);
+                document.removeEventListener('pointerup', stop);
+                this.map.dragging.enable();
+
+                if (JSON.stringify(before) !== JSON.stringify(this.traceWhere())) {
+                    this.traceStep(before);
+                }
+
+                this.traceDrag = null;
+                this.traceHandles();
+                this.traceKeep();
+            };
+
+            document.addEventListener('pointermove', move);
+            document.addEventListener('pointerup', stop);
+        }
+
+        /** Works out where the picture's corners have got to, and puts them there. */
+        traceMove(e) {
+            const drag = this.traceDrag;
+
+            if (!drag) {
+                return;
+            }
+
+            const at = this.map.mouseEventToContainerPoint(e);
+            const { points, middle, from, corner } = drag;
+            let moved = points;
+
+            if (drag.doing === 'move') {
+                const shift = at.subtract(from);
+
+                moved = points.map((point) => point.add(shift));
+            } else if (drag.doing === 'turn') {
+                const turned = Math.atan2(at.y - middle.y, at.x - middle.x) - drag.angle;
+                const cos = Math.cos(turned);
+                const sin = Math.sin(turned);
+
+                moved = points.map((point) => {
+                    const off = point.subtract(middle);
+
+                    return middle.add(L.point(off.x * cos - off.y * sin, off.x * sin + off.y * cos));
+                });
+            } else if (drag.doing === 'side') {
+                // Out from or in towards the side opposite, which stays where it is
+                const [first, second, anchorFirst, anchorSecond] = SIDES[corner];
+                const moving = [first, second];
+                const anchors = [anchorFirst, anchorSecond];
+                const held = points[anchorFirst].add(points[anchorSecond]).divideBy(2);
+                const axis = points[first].add(points[second]).divideBy(2).subtract(held);
+                const reach = at.subtract(held);
+                const along = Math.max((reach.x * axis.x + reach.y * axis.y) / (axis.x * axis.x + axis.y * axis.y || 1), 0.05);
+
+                moved = points.map((point, index) => {
+                    const which = moving.indexOf(index);
+
+                    return which === -1 ? point : points[anchors[which]].add(point.subtract(points[anchors[which]]).multiplyBy(along));
+                });
+            } else if (e.altKey) {
+                // One corner on its own, which leans the picture out of shape
+                moved = points.map((point, index) => (index === corner ? at : point));
+            } else {
+                // Out from or in towards the far corner, keeping the picture's own shape
+                const anchor = points[3 - corner];
+                const was = points[corner].subtract(anchor);
+                const now = at.subtract(anchor);
+                const along = (was.x * now.x + was.y * now.y) / (was.x * was.x + was.y * was.y || 1);
+                const scale = Math.max(along, 0.05);
+
+                moved = points.map((point) => anchor.add(point.subtract(anchor).multiplyBy(scale)));
+            }
+
+            this.tracing.setCorners(moved.map((point) => this.map.containerPointToLatLng(point)));
+            this.traceRefresh();
+        }
+
+        /** Where the picture is now, as plain numbers to keep or to step back to. */
+        traceWhere() {
+            return this.tracing.getCorners().map((corner) => [corner.lat, corner.lng]);
+        }
+
+        /** Remembers where the picture was before a change, and drops anything stepped forward to. */
+        traceStep(before) {
+            this.traceSteps ??= { back: [], on: [] };
+            this.traceSteps.back.push(before);
+            this.traceSteps.on = [];
+
+            // Far enough back to undo a session's worth of nudging
+            if (this.traceSteps.back.length > 40) {
+                this.traceSteps.back.shift();
+            }
+
+            this.traceButtons();
+        }
+
+        /** Steps the picture back to where it was, or forward again. */
+        traceGo(way) {
+            const from = this.traceSteps?.[way] ?? [];
+            const to = this.traceSteps?.[way === 'back' ? 'on' : 'back'] ?? [];
+            const corners = from.pop();
+
+            if (!corners || !this.tracing) {
+                return;
+            }
+
+            to.push(this.traceWhere());
+            this.tracing.setCorners(corners.map((corner) => L.latLng(corner)));
+            this.traceHandles();
+            this.traceKeep();
+            this.traceButtons();
+        }
+
+        /** Greys out a step that isn't there to take. */
+        traceButtons() {
+            if (this.traceBack) {
+                this.traceBack.disabled = !(this.traceSteps?.back ?? []).length;
+            }
+
+            if (this.traceOn) {
+                this.traceOn.disabled = !(this.traceSteps?.on ?? []).length;
+            }
+        }
+
+        /** Keeps where the picture has got to, so it opens lined up as it was left. */
+        traceKeep() {
+            keep(this.traceKey(), {
+                image: this.traceImage,
+                corners: this.tracing.getCorners().map((corner) => [corner.lat, corner.lng]),
+            });
+        }
+
+        /** A fader for the picture, and a way of taking it off again. */
+        traceControl() {
+            if (this.traceBox) {
+                return;
+            }
+
+            const Fader = L.Control.extend({
+                options: { position: 'bottomleft' },
+                onAdd: () => {
+                    const box = L.DomUtil.create('div', 'leaflet-bar leaflet-control landmark-trace');
+
+                    L.DomEvent.disableClickPropagation(box);
+
+                    // Until this is ticked the picture is only something to look at, so the
+                    // drawing tools have the map to themselves
+                    // A plain checkbox, not the control panel's own: that one is drawn by taking
+                    // its label out of the flow, which would leave the label lying over this bar
+                    const editing = L.DomUtil.create('div', 'landmark-trace-edit', box);
+                    const tick = L.DomUtil.create('input', '', editing);
+                    const named = `landmark-edit-${this.config.name}`;
+
+                    tick.type = 'checkbox';
+                    tick.id = named;
+                    tick.setAttribute('form', 'landmark-detached');
+                    tick.addEventListener('change', () => this.traceEditing(tick.checked));
+
+                    const label = L.DomUtil.create('label', '', editing);
+
+                    label.htmlFor = named;
+                    label.textContent = Craft.t('landmark', 'Edit');
+
+                    // A step back through where the picture has been, and forward again
+                    this.traceBack = L.DomUtil.create('button', 'landmark-trace-step', box);
+                    this.traceBack.type = 'button';
+                    this.traceBack.innerHTML = '&#8630;';
+                    this.traceBack.title = Craft.t('landmark', 'Undo');
+                    this.traceBack.addEventListener('click', () => this.traceGo('back'));
+
+                    this.traceOn = L.DomUtil.create('button', 'landmark-trace-step', box);
+                    this.traceOn.type = 'button';
+                    this.traceOn.innerHTML = '&#8631;';
+                    this.traceOn.title = Craft.t('landmark', 'Redo');
+                    this.traceOn.addEventListener('click', () => this.traceGo('on'));
+                    this.traceButtons();
+
+                    // Back to how it arrived: square to the map, its own shape, in the middle
+                    const again = L.DomUtil.create('button', 'landmark-trace-reset', box);
+
+                    again.type = 'button';
+                    again.textContent = Craft.t('landmark', 'Reset');
+                    again.addEventListener('click', async () => {
+                        if (!this.traceImage) {
+                            return;
+                        }
+
+                        const before = this.traceWhere();
+
+                        this.tracing.setCorners(await this.placeFor(this.traceImage));
+                        this.traceStep(before);
+                        this.traceHandles();
+                        this.traceKeep();
+                    });
+
+                    const fade = L.DomUtil.create('input', '', box);
+
+                    fade.type = 'range';
+                    fade.min = 0;
+                    fade.max = 100;
+                    fade.value = 100;
+                    fade.title = Craft.t('landmark', 'How solid the picture is');
+                    fade.setAttribute('form', 'landmark-detached');
+                    fade.addEventListener('input', () => this.tracing?.setOpacity(fade.value / 100));
+
+                    const off = L.DomUtil.create('button', '', box);
+
+                    off.type = 'button';
+                    off.textContent = Craft.t('landmark', 'Remove');
+                    off.addEventListener('click', () => {
+                        if (!window.confirm(Craft.t('landmark', 'Take this picture off the map?'))) {
+                            return;
+                        }
+
+                        this.map.removeLayer(this.tracing);
+                        this.tracing = null;
+                        this.traceImage = null;
+                        this.traceHandles();
+                        forget(this.traceKey());
+                        this.map.removeControl(this.traceBox);
+                        this.traceBox = null;
+                    });
+
+                    return box;
+                },
+            });
+
+            this.traceBox = new Fader();
+            this.map.addControl(this.traceBox);
         }
 
         initMap() {
@@ -1031,6 +1634,87 @@
             });
         }
     }
+
+    // Each side of a picture: the two corners along it, then the two opposite them, which a drag
+    // from that side holds still. Corners run north west, north east, south west, south east.
+    const SIDES = [
+        [0, 1, 2, 3],
+        [1, 3, 0, 2],
+        [2, 3, 0, 1],
+        [0, 2, 1, 3],
+    ];
+
+    // Turning has no cursor of its own, so it carries one: an arrow coming back around on itself
+    const TURN_CURSOR = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'
+        + '<path d="M12 5a7 7 0 1 0 6.3 3.9" fill="none" stroke="black" stroke-width="3.4" stroke-linecap="round"/>'
+        + '<path d="M12 5a7 7 0 1 0 6.3 3.9" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'
+        + '<path d="M11.4 1.6 16 5l-4.6 3.4z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/>'
+        + '</svg>'
+    )}") 12 12, crosshair`;
+
+    /** Fetches a script the first time something needs it, and once only. */
+    const loaded = {};
+    const loadScript = (src) => (loaded[src] ??= new Promise((resolve, reject) => {
+        const tag = document.createElement('script');
+
+        tag.src = src;
+        tag.onload = resolve;
+        tag.onerror = () => reject(new Error(`Landmark: ${src} did not load.`));
+        document.head.append(tag);
+    }));
+
+    const loadStyle = (href) => {
+        if (!loaded[href]) {
+            loaded[href] = true;
+            const link = document.createElement('link');
+
+            link.rel = 'stylesheet';
+            link.href = href;
+            document.head.append(link);
+        }
+    };
+
+    /** Scripts in the order given, since the later ones are written against the earlier. */
+    const loadOnce = async (scripts, styles) => {
+        (styles || []).forEach(loadStyle);
+
+        for (const src of scripts) {
+            await loadScript(src);
+        }
+    };
+
+    /**
+     * Pictures traced over are kept in this browser, in a store of their own. They can run to
+     * megabytes, which is more than the places a page usually keeps things will take.
+     */
+    const store = () => new Promise((resolve, reject) => {
+        const opening = indexedDB.open('landmark', 1);
+
+        opening.onupgradeneeded = () => opening.result.createObjectStore('tracing');
+        opening.onsuccess = () => resolve(opening.result);
+        opening.onerror = () => reject(opening.error);
+    });
+
+    const inStore = async (how, key, value) => {
+        try {
+            const db = await store();
+            const deal = db.transaction('tracing', how === 'get' ? 'readonly' : 'readwrite').objectStore('tracing');
+            const asked = how === 'get' ? deal.get(key) : (how === 'put' ? deal.put(value, key) : deal.delete(key));
+
+            return await new Promise((resolve) => {
+                asked.onsuccess = () => resolve(asked.result);
+                asked.onerror = () => resolve(null);
+            });
+        } catch (e) {
+            // A browser with its storage turned off traces for this visit only
+            return null;
+        }
+    };
+
+    const kept = (key) => inStore('get', key);
+    const keep = (key, value) => inStore('put', key, value);
+    const forget = (key) => inStore('delete', key);
 
     /** A feature's geometry, carrying whatever its properties said, which are kept against a shape. */
     const geometryIn = (feature) => (feature && feature.geometry

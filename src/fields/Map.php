@@ -26,6 +26,9 @@ class Map extends Field
 
     public bool $allowMultiple = false;
 
+    /** Whether an image can be dropped on the map and lined up to draw over. */
+    public bool $traceImage = false;
+
     /** Whether this field picks its own toolbar buttons rather than the plugin's. */
     public bool $ownEditingTools = false;
 
@@ -113,6 +116,12 @@ class Map extends Field
         return true;
     }
 
+    /** Where one of the plugin's own asset files ends up once Craft has published it. */
+    private function published(string $file): string
+    {
+        return Craft::$app->getAssetManager()->getPublishedUrl(__DIR__ . '/../web/assets/field/dist', true, $file);
+    }
+
     protected function defineRules(): array
     {
         return array_merge(parent::defineRules(), [
@@ -123,6 +132,7 @@ class Map extends Field
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
             [['contextLimit'], 'integer', 'min' => 1, 'max' => 2000],
             [['editingTools'], 'each', 'rule' => ['in', 'range' => array_keys(Settings::EDITING_TOOLS)]],
+            [['allowMultiple', 'ownEditingTools', 'traceImage'], 'boolean'],
         ]);
     }
 
@@ -332,6 +342,12 @@ class Map extends Field
             'shapes' => $this->shapes,
             'allowMultiple' => $this->allowMultiple,
             'editingTools' => $this->ownEditingTools ? $this->editingTools : $settings->editingTools,
+            // Where the warping library sits, fetched only once a picture is actually dropped
+            'trace' => $this->traceImage ? [
+                'element' => $element?->id,
+                'scripts' => array_map([$this, 'published'], ['vendor/leaflet-distortable-toolbar.js', 'vendor/leaflet-distortable.js']),
+                'styles' => array_map([$this, 'published'], ['vendor/leaflet-distortable-toolbar.css', 'vendor/leaflet-distortable.css']),
+            ] : null,
             'basemapUrl' => $settings->tileUrl(),
             'basemapAttribution' => $settings->attribution(),
             'hasSatellite' => $settings->resolvedGoogleApiKey() !== null,

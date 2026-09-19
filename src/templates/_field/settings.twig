@@ -54,6 +54,14 @@
     on: field.allowMultiple,
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Trace An Image'|t('landmark'),
+    instructions: 'Drop a picture on the map and drag its corners to line it up, then draw over it. The picture stays in this browser and is never saved with the shape.'|t('landmark'),
+    id: 'traceImage',
+    name: 'traceImage',
+    on: field.traceImage,
+}) }}
+
 {{ forms.textField({
     label: 'Default Latitude'|t('landmark'),
     instructions: 'Where this field’s map opens, before anything is drawn. Leave blank to use the plugin’s setting.'|t('landmark'),

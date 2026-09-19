@@ -159,6 +159,114 @@
     visibility: visible;
 }
 
+/* While a picture is being dragged onto the map to trace over */
+.landmark-map.landmark-dropping::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border: 2px dashed var(--link-color);
+    border-radius: var(--large-border-radius);
+    background-color: rgb(255 255 255 / 0.35);
+    pointer-events: none;
+}
+
+.landmark-trace {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background-color: var(--white);
+    font-size: 11px;
+}
+
+.landmark-trace input {
+    width: 80px;
+}
+
+.landmark-trace select {
+    font-size: 11px;
+}
+
+.landmark-trace-edit {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.landmark-trace-edit input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+}
+
+.landmark-trace-edit label {
+    cursor: pointer;
+}
+
+/* A corner or a side of the picture being lined up, taken hold of to resize, turn or lean it */
+.landmark-corner,
+.landmark-side {
+    box-sizing: border-box;
+    border: 2px solid var(--white);
+    border-radius: 50%;
+    background-color: var(--link-color);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+    /* Never the transform, which is what a handle is carried around the map by */
+    transition: background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+}
+
+/* Whichever handle or edge the pointer is on */
+.landmark-corner.is-lit,
+.landmark-side.is-lit {
+    background-color: var(--white);
+    border-color: var(--link-color);
+    box-shadow: 0 0 0 4px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.4);
+}
+
+.landmark-edge {
+    stroke: var(--link-color);
+    stroke-dasharray: 5 4;
+    opacity: 0.7;
+}
+
+.landmark-edge.is-lit {
+    stroke-dasharray: none;
+    stroke-width: 3;
+    opacity: 1;
+}
+
+.landmark-trace-step {
+    padding: 0 4px;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.landmark-trace-step:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.landmark-trace-reset {
+    text-decoration: underline;
+}
+
+.landmark-trace button {
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--medium-text-color);
+}
+
+.landmark-trace button:hover {
+    background-color: var(--gray-100);
+    color: var(--text-color);
+}
+
+.landmark-trace button.is-on {
+    background-color: var(--gray-200);
+    color: var(--text-color);
+}
+
 .landmark-error {
     margin: 0;
     padding: 6px 10px;
