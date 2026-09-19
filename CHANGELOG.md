@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Pasting a FeatureCollection into the GeoJSON panel kept only its first feature. Every feature is kept now, and what a feature's properties say is kept against its shape.
+
 ### Changed
 
 - Scrolling over a map now scrolls the page. Zooming takes Cmd or Ctrl and the wheel, and a hint says so.

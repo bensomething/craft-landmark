@@ -1031,17 +1031,25 @@
         }
     }
 
+    /** A feature's geometry, carrying whatever its properties said, which are kept against a shape. */
+    const geometryIn = (feature) => (feature && feature.geometry
+        ? { ...(feature.properties || {}), ...feature.geometry }
+        : null);
+
     function geometryOf(parsed) {
         if (!parsed || typeof parsed !== 'object') {
             return null;
         }
 
         if (parsed.type === 'FeatureCollection') {
-            return (parsed.features || []).length ? parsed.features[0].geometry : null;
+            const geometries = (parsed.features || []).map(geometryIn).filter(Boolean);
+
+            // Every feature is kept, where taking the first would quietly drop the rest
+            return geometries.length > 1 ? { type: 'GeometryCollection', geometries } : (geometries[0] ?? null);
         }
 
         if (parsed.type === 'Feature') {
-            return parsed.geometry || null;
+            return geometryIn(parsed);
         }
 
         return parsed.coordinates || parsed.geometries ? parsed : null;
