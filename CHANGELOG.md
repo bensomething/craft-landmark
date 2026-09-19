@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- A field editing one shape on an entry hid the entry's other shapes as well, so a fence and a boundary drawn on one entry never showed behind each other. Only the field being edited is left out now.
 - A layout holding the same field more than once, such as a fence and a boundary drawn on one entry, only ever drew the first of them. Each is drawn now.
 
 ## 0.2.1 - 2026-09-19

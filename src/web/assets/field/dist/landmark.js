@@ -424,6 +424,7 @@
                     relations: context.relation ? context.relation.fields : [],
                     related: this.contextRelated,
                     exclude: context.exclude,
+                    instance: context.instance,
                     limit: context.limit,
                 },
             })

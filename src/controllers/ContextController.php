@@ -26,6 +26,8 @@ class ContextController extends Controller
         $relationUids = array_filter((array)$request->getBodyParam('relations', []));
         $related = array_filter(array_map('intval', (array)$request->getBodyParam('related', [])));
         $exclude = array_map('intval', (array)$request->getBodyParam('exclude', []));
+        // The field being edited, so only its own shape is left out of the entry's
+        $instance = (string)$request->getBodyParam('instance', '');
         $limit = min((int)$request->getBodyParam('limit', 250) ?: 250, 2000);
 
         $fields = Craft::$app->getFields();
@@ -59,9 +61,7 @@ class ContextController extends Controller
                 }
 
                 foreach (array_merge(...array_map(fn($each) => $each->all(), $queries)) as $entry) {
-                    if (in_array($entry->id, $exclude, true) || in_array($entry->getCanonicalId(), $exclude, true)) {
-                        continue;
-                    }
+                    $editing = in_array($entry->id, $exclude, true) || in_array($entry->getCanonicalId(), $exclude, true);
 
                     if (!$elements->canView($entry)) {
                         continue;
@@ -69,6 +69,11 @@ class ContextController extends Controller
 
                     // A layout can hold the same field more than once, and each of those is drawn
                     foreach (MapField::valuesOn($entry, (string)$fieldUid) as $handle => $value) {
+                        // The entry being edited shows every shape but the one in the field itself
+                        if ($editing && ($instance === '' || $handle === $instance)) {
+                            continue;
+                        }
+
                         if ($value->getIsEmpty() || isset($seen["$entry->id:$handle"])) {
                             continue;
                         }

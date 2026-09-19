@@ -387,6 +387,9 @@ class Map extends Field
                 $element?->id,
                 $element?->getCanonicalId(),
             ]))),
+            // Only this field is left out of the entry's own shapes, so a fence and a boundary
+            // drawn on one entry each show behind the other
+            'instance' => $this->handle,
         ];
     }
 
