@@ -2,6 +2,7 @@
 
 namespace bensomething\landmark\controllers;
 
+use bensomething\landmark\fields\Map as MapField;
 use bensomething\landmark\Plugin;
 use bensomething\landmark\web\assets\field\LandmarkFieldAsset;
 use Craft;
@@ -51,6 +52,8 @@ class OverviewController extends Controller
             'opacity' => $settings->shapeOpacity,
             'sources' => $field->contextSources(),
             'relations' => $field->contextRelations,
+            // The map page is where a picture is lined up, for every field map of that year to show
+            'trace' => MapField::traceConfig('align'),
             'icons' => [
                 'layers' => Cp::iconSvg('layer-group'),
             ],

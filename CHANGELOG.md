@@ -2,8 +2,14 @@
 
 ## 0.3.0 - 2026-09-19
 
+### Changed
+
+- A picture is lined up once, on the overview map, and any field map can then turn it on underneath its shapes to draw from. A field shows the picture as it was lined up and nothing more, so what is drawn over it can't be moved by mistake.
+- Trace An Image has moved from each field's settings to a Tracing setting for the plugin. Fields that had it on will need it turning on once, for the plugin.
+
 ### Fixed
 
+- A picture came back from storage unreadable in Safari, leaving the map page with its controls and no picture, and a field able to show one only once. Its bytes are kept now, rather than the file itself.
 - The Show Shapes From setting's rows are a table now, so a field's name, its toggle and its colour line up with one another.
 
 ## 0.2.3 - 2026-09-19

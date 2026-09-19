@@ -58,6 +58,9 @@ class Settings extends Model
     /** Adds a Map page to the control panel, showing a field's sources all at once. */
     public bool $overviewMap = false;
 
+    /** Lets a picture be lined up on the map page and traced over on every field map for that year. */
+    public bool $tracing = true;
+
     public const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
     public const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
     public const CARTO_URL = 'https://{s}.basemaps.cartocdn.com/%s/{z}/{x}/{y}{r}.png';
@@ -87,6 +90,7 @@ class Settings extends Model
             [['defaultZoom'], 'integer', 'min' => 0, 'max' => 22],
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
             [['shapeOpacity'], 'number', 'min' => 0, 'max' => 1],
+            [['overviewMap', 'tracing'], 'boolean'],
             [['editingTools'], 'each', 'rule' => ['in', 'range' => array_keys(self::EDITING_TOOLS)]],
         ];
     }

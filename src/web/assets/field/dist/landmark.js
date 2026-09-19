@@ -190,74 +190,84 @@
                 // Storage can be turned off, in which case the choice lasts for this page only
             }
         }
-    }
-
-    class Field extends MapBase {
-        constructor(id, config) {
-            super();
-            this.container = document.getElementById(id);
-
-            if (!this.container) {
-                return;
-            }
-
-            if (typeof L === 'undefined' || !L.map) {
-                console.error('Landmark: Leaflet did not load, so the map cannot be drawn.');
-                this.container.querySelector('.landmark-code').hidden = false;
-                return;
-            }
-
-            this.config = config;
-            this.input = this.container.querySelector('.landmark-value');
-            this.panel = this.container.querySelector('.landmark-code');
-            this.textarea = this.container.querySelector('.landmark-json');
-            this.error = this.container.querySelector('.landmark-error');
-            this.typing = false;
-
-            this.initMap();
-            this.initCodePanel();
-            this.initContext();
-            this.initTrace();
-        }
 
         /**
-         * A picture to draw over: dropped on the map, dragged by its corners until it lines up with
-         * what is underneath, then drawn over. It is kept in this browser rather than saved with the
-         * field, being a way of working rather than anything the entry should carry.
+         * A picture to draw over. It is dropped and lined up on the map page, where every shape is
+         * shown together, and any field map can then ask for it underneath to draw from. It is kept
+         * in this browser rather than saved, being a way of working rather than anything the site
+         * should carry.
          */
         initTrace() {
             if (!this.config.trace) {
                 return;
             }
 
-            const map = this.container.querySelector('.landmark-map');
+            this.traceMode = this.config.trace.mode;
 
-            ['dragenter', 'dragover'].forEach((name) => map.addEventListener(name, (e) => {
-                if ([...e.dataTransfer.types].includes('Files')) {
+            if (this.traceMode === 'align') {
+                const map = this.container.querySelector('.landmark-map');
+
+                ['dragenter', 'dragover'].forEach((name) => map.addEventListener(name, (e) => {
+                    if ([...e.dataTransfer.types].includes('Files')) {
+                        e.preventDefault();
+                        map.classList.add('landmark-dropping');
+                    }
+                }));
+
+                ['dragleave', 'drop'].forEach((name) => map.addEventListener(name, () => map.classList.remove('landmark-dropping')));
+
+                map.addEventListener('drop', (e) => {
+                    const file = [...(e.dataTransfer.files || [])].find((each) => each.type.startsWith('image/'));
+
+                    if (!file) {
+                        return;
+                    }
+
                     e.preventDefault();
-                    map.classList.add('landmark-dropping');
-                }
-            }));
+                    this.trace(file);
+                });
 
-            ['dragleave', 'drop'].forEach((name) => map.addEventListener(name, () => map.classList.remove('landmark-dropping')));
-
-            map.addEventListener('drop', (e) => {
-                const file = [...(e.dataTransfer.files || [])].find((each) => each.type.startsWith('image/'));
-
-                if (!file) {
-                    return;
-                }
-
-                e.preventDefault();
-                this.trace(file);
-            });
-
-            kept(this.traceKey()).then((saved) => saved && this.trace(saved.image, saved.corners));
+                this.traceLoad();
+            } else {
+                // Nothing to offer until a picture has been lined up on the map page
+                kept(this.traceKey()).then((saved) => saved && this.traceToggle());
+            }
         }
 
-        /** What this field's picture is kept under, which is the field on this entry. */
+        /**
+         * There is one picture, whatever the map page is filtered by, so lining it up once is
+         * enough for every field that asks to see it.
+         */
         traceKey() {
-            return `${this.config.trace.element ?? 'new'}:${this.config.name}`;
+            return 'picture';
+        }
+
+        /** Puts the picture up, if one has been lined up. */
+        async traceLoad() {
+            const saved = await kept(this.traceKey());
+
+            if (saved && !this.tracing) {
+                this.trace(saved.image, saved.corners);
+            }
+        }
+
+        /** Takes the picture off the map, leaving whatever it was kept under alone. */
+        traceOff() {
+            if (this.tracing) {
+                this.map.removeLayer(this.tracing);
+                this.tracing = null;
+                this.traceImage = null;
+                this.traceSteps = { back: [], on: [] };
+                this.traceHandles();
+            }
+
+            // A field keeps its box, since that is what asks for the picture back
+            if (this.traceMode === 'align') {
+                if (this.traceBox) {
+                    this.map.removeControl(this.traceBox);
+                    this.traceBox = null;
+                }
+            }
         }
 
         /**
@@ -723,8 +733,59 @@
             });
         }
 
-        /** A fader for the picture, and a way of taking it off again. */
+        /**
+         * A field asks for the picture rather than being given it, so a map stays as it was
+         * unless someone is tracing, and the tracing code is only fetched when it is wanted.
+         */
+        traceToggle() {
+            const Toggle = L.Control.extend({
+                options: { position: 'bottomleft' },
+                onAdd: () => {
+                    const box = L.DomUtil.create('div', 'leaflet-bar leaflet-control landmark-trace');
+
+                    L.DomEvent.disableClickPropagation(box);
+
+                    // A plain checkbox, not the control panel's own: that one is drawn by taking
+                    // its label out of the flow, which would leave the label lying over this bar
+                    const asking = L.DomUtil.create('div', 'landmark-trace-edit', box);
+                    const tick = L.DomUtil.create('input', '', asking);
+                    const named = `landmark-picture-${this.config.name}`;
+
+                    tick.type = 'checkbox';
+                    tick.id = named;
+                    tick.setAttribute('form', 'landmark-detached');
+                    tick.addEventListener('change', () => (tick.checked ? this.traceLoad() : this.traceOff()));
+
+                    const label = L.DomUtil.create('label', '', asking);
+
+                    label.htmlFor = named;
+                    label.textContent = Craft.t('landmark', 'Picture');
+
+                    return box;
+                },
+            });
+
+            this.traceBox = new Toggle();
+            this.map.addControl(this.traceBox);
+        }
+
+        /** How solid the picture is, which every map that shows one has. */
+        traceFader(box) {
+            const fade = L.DomUtil.create('input', '', box);
+
+            fade.type = 'range';
+            fade.min = 0;
+            fade.max = 100;
+            fade.value = 100;
+            fade.title = Craft.t('landmark', 'How solid the picture is');
+            fade.setAttribute('form', 'landmark-detached');
+            fade.addEventListener('input', () => this.tracing?.setOpacity(fade.value / 100));
+
+            this.traceFade = fade;
+        }
+
         traceControl() {
+            // A field's box holds nothing but its toggle: the picture is simply on or off
             if (this.traceBox) {
                 return;
             }
@@ -786,15 +847,7 @@
                         this.traceKeep();
                     });
 
-                    const fade = L.DomUtil.create('input', '', box);
-
-                    fade.type = 'range';
-                    fade.min = 0;
-                    fade.max = 100;
-                    fade.value = 100;
-                    fade.title = Craft.t('landmark', 'How solid the picture is');
-                    fade.setAttribute('form', 'landmark-detached');
-                    fade.addEventListener('input', () => this.tracing?.setOpacity(fade.value / 100));
+                    this.traceFader(box);
 
                     const off = L.DomUtil.create('button', '', box);
 
@@ -821,6 +874,36 @@
             this.traceBox = new Fader();
             this.map.addControl(this.traceBox);
         }
+    }
+
+    class Field extends MapBase {
+        constructor(id, config) {
+            super();
+            this.container = document.getElementById(id);
+
+            if (!this.container) {
+                return;
+            }
+
+            if (typeof L === 'undefined' || !L.map) {
+                console.error('Landmark: Leaflet did not load, so the map cannot be drawn.');
+                this.container.querySelector('.landmark-code').hidden = false;
+                return;
+            }
+
+            this.config = config;
+            this.input = this.container.querySelector('.landmark-value');
+            this.panel = this.container.querySelector('.landmark-code');
+            this.textarea = this.container.querySelector('.landmark-json');
+            this.error = this.container.querySelector('.landmark-error');
+            this.typing = false;
+
+            this.initMap();
+            this.initCodePanel();
+            this.initContext();
+            this.initTrace();
+        }
+
 
         initMap() {
             const c = this.config;
@@ -1462,6 +1545,7 @@
             this.gateZoom();
             this.initBasemaps();
             this.addControl();
+            this.initTrace();
         }
 
         addControl() {
@@ -1712,8 +1796,27 @@
         }
     };
 
-    const kept = (key) => inStore('get', key);
-    const keep = (key, value) => inStore('put', key, value);
+    /**
+     * The picture is kept as its bytes rather than as a file. Safari hands back a file it has
+     * stored but refuses to read it, leaving a picture that is there and cannot be shown.
+     */
+    const kept = async (key) => {
+        const saved = await inStore('get', key);
+
+        // One kept as a file, before this, is one Safari will not read: it is asked for again
+        if (!saved || !saved.bytes) {
+            return null;
+        }
+
+        return { ...saved, image: new Blob([saved.bytes], { type: saved.type }) };
+    };
+
+    const keep = async (key, value) => inStore('put', key, {
+        bytes: await value.image.arrayBuffer(),
+        type: value.image.type || 'image/png',
+        corners: value.corners,
+    });
+
     const forget = (key) => inStore('delete', key);
 
     /** A feature's geometry, carrying whatever its properties said, which are kept against a shape. */

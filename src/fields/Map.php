@@ -26,9 +26,6 @@ class Map extends Field
 
     public bool $allowMultiple = false;
 
-    /** Whether an image can be dropped on the map and lined up to draw over. */
-    public bool $traceImage = false;
-
     /** Whether this field picks its own toolbar buttons rather than the plugin's. */
     public bool $ownEditingTools = false;
 
@@ -70,6 +67,9 @@ class Map extends Field
                 $config['contextRelations'] = [$old];
             }
         }
+
+        // Saved before tracing became a setting for the plugin rather than each field
+        unset($config['traceImage']);
 
         // An empty checkbox list posts an empty string
         foreach (['contextFields', 'contextRelations', 'editingTools'] as $key) {
@@ -116,10 +116,26 @@ class Map extends Field
         return true;
     }
 
-    /** Where one of the plugin's own asset files ends up once Craft has published it. */
-    private function published(string $file): string
+    /**
+     * What a map needs to trace a picture: the warping library, fetched only when one is dropped.
+     * A map page lines a picture up, and a field shows the one lined up for its year.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function traceConfig(string $mode): ?array
     {
-        return Craft::$app->getAssetManager()->getPublishedUrl(__DIR__ . '/../web/assets/field/dist', true, $file);
+        if (!Plugin::getInstance()->getSettings()->tracing) {
+            return null;
+        }
+
+        $dist = __DIR__ . '/../web/assets/field/dist';
+        $published = fn(string $file) => Craft::$app->getAssetManager()->getPublishedUrl($dist, true, $file);
+
+        return [
+            'mode' => $mode,
+            'scripts' => array_map($published, ['vendor/leaflet-distortable-toolbar.js', 'vendor/leaflet-distortable.js']),
+            'styles' => array_map($published, ['vendor/leaflet-distortable-toolbar.css', 'vendor/leaflet-distortable.css']),
+        ];
     }
 
     protected function defineRules(): array
@@ -132,7 +148,7 @@ class Map extends Field
             [['height'], 'integer', 'min' => 200, 'max' => 1200],
             [['contextLimit'], 'integer', 'min' => 1, 'max' => 2000],
             [['editingTools'], 'each', 'rule' => ['in', 'range' => array_keys(Settings::EDITING_TOOLS)]],
-            [['allowMultiple', 'ownEditingTools', 'traceImage'], 'boolean'],
+            [['allowMultiple', 'ownEditingTools'], 'boolean'],
         ]);
     }
 
@@ -342,12 +358,8 @@ class Map extends Field
             'shapes' => $this->shapes,
             'allowMultiple' => $this->allowMultiple,
             'editingTools' => $this->ownEditingTools ? $this->editingTools : $settings->editingTools,
-            // Where the warping library sits, fetched only once a picture is actually dropped
-            'trace' => $this->traceImage ? [
-                'element' => $element?->id,
-                'scripts' => array_map([$this, 'published'], ['vendor/leaflet-distortable-toolbar.js', 'vendor/leaflet-distortable.js']),
-                'styles' => array_map([$this, 'published'], ['vendor/leaflet-distortable-toolbar.css', 'vendor/leaflet-distortable.css']),
-            ] : null,
+            // A field shows the picture lined up for its year, and doesn't line one up itself
+            'trace' => self::traceConfig('show'),
             'basemapUrl' => $settings->tileUrl(),
             'basemapAttribution' => $settings->attribution(),
             'hasSatellite' => $settings->resolvedGoogleApiKey() !== null,

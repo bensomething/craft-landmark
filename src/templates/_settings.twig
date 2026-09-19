@@ -135,6 +135,14 @@
     on: settings.overviewMap,
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Tracing'|t('landmark'),
+    instructions: 'Lets a picture be dropped on the Map page and lined up against what is underneath. Any field map can then turn it on below the shapes, to draw from. A picture is kept in the browser it was dropped in and is never saved with an entry.'|t('landmark'),
+    id: 'tracing',
+    name: 'tracing',
+    on: settings.tracing,
+}) }}
+
 {{ forms.checkboxGroupField({
     label: 'Editing Tools'|t('landmark'),
     instructions: 'The toolbar buttons every field shows, unless it picks its own.'|t('landmark'),

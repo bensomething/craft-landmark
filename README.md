@@ -34,7 +34,7 @@ In **Settings → Plugins → Landmark**:
 Each field chooses its own tools (marker, line, shape, rectangle, circle, dot, label), whether more than one shape is allowed, and can override the centre, zoom and height.
 
 - **Editing Tools**. Which of the toolbar's Edit, Drag, Cut, Remove and Rotate buttons to show. Set once in the plugin settings, and a field can pick its own instead.
-- **Trace An Image**. Lets a picture be dropped on the map and lined up under the shapes, to draw from. See below.
+- **Tracing**. Lets a picture be dropped on the overview map and lined up against what's underneath, for any field map to draw from. See below.
 - A circle, dot or label is stored as a point with its `radius`, `dotRadius` or `text` written against it, since GeoJSON has no room for them. They're drawn back as themselves when the field reopens.
 
 A field can also draw other entries' shapes behind its own, so you can line things up:
@@ -74,7 +74,7 @@ L.marker([{{ entry.pin.lat }}, {{ entry.pin.lng }}]).addTo(map);
 
 ### Tracing a picture
 
-With **Trace An Image** on, drop a picture anywhere on the field's map and it lands in the middle at its own proportions. Tick **Edit** to line it up:
+With **Tracing** on, a picture is lined up once on the **Map** page and then drawn from everywhere. Drop it anywhere on the overview map and it lands in the middle at its own proportions. Tick **Edit** to line it up against the shapes underneath:
 
 - Drag a **corner** to resize it, keeping its shape, out from or in towards the far corner.
 - Drag a **side** to resize that way only, from the side opposite.
@@ -84,7 +84,9 @@ With **Trace An Image** on, drop a picture anywhere on the field's map and it la
 
 The slider fades it, **Reset** puts it back as it arrived, and **Undo** and **Redo**, or Cmd-Z and Shift-Cmd-Z, step through where it has been. Untick Edit and the picture stops taking the mouse, leaving the drawing tools the map.
 
-A picture is kept in the browser it was dropped in, against that field on that entry. It is never saved with the field, never uploaded, and never seen by anyone else: it is a way of working, not part of the entry.
+A picture belongs to the entry the map is filtered by, so lining one up against a year shows it on every field map for that year, underneath the shapes and behind a slider to fade it. It can't be moved or replaced there, only traced.
+
+A picture is kept in the browser it was dropped in. It is never saved with a field, never uploaded, and never seen by anyone else: it is a way of working, not part of the entry.
 
 ### Keys on a shape
 
