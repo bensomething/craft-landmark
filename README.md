@@ -48,7 +48,9 @@ Turn on **Overview Map** in the plugin settings to add a **Map** page to the con
 
 ## Usage
 
-Add a **Landmark** field to an entry type, then draw.
+Add a **Landmark** field to an entry type, then draw. Scrolling over a map scrolls the page, as it would anywhere else, and zooming takes Cmd or Ctrl with the wheel.
+
+Pasting GeoJSON into the panel behind the `{}` button takes a geometry, a feature or a whole collection, and what a feature's properties say is kept against its shape.
 
 ```twig
 {# GeoJSON geometry, ready for Leaflet #}
