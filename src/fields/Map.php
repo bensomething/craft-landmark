@@ -147,18 +147,28 @@ class Map extends Field
         return array_values(array_unique($handles));
     }
 
-    /** What a field holds on one entry, read by the handle that entry's own layout gives it. */
-    public static function valueOn(ElementInterface $element, string $fieldUid): ?Shape
+    /**
+     * What a field holds on one entry, read by the handle that entry's own layout gives it. A
+     * layout can use the same field more than once, such as a fence and a boundary drawn on one
+     * entry, and each of those is kept under a handle of its own.
+     *
+     * @return array<string, Shape> the handle each value is held under
+     */
+    public static function valuesOn(ElementInterface $element, string $fieldUid): array
     {
+        $values = [];
+
         foreach ($element->getFieldLayout()?->getCustomFields() ?? [] as $layoutField) {
             if ($layoutField->uid === $fieldUid) {
                 $value = $element->getFieldValue($layoutField->handle);
 
-                return $value instanceof Shape ? $value : null;
+                if ($value instanceof Shape) {
+                    $values[$layoutField->handle] = $value;
+                }
             }
         }
 
-        return null;
+        return $values;
     }
 
     /**

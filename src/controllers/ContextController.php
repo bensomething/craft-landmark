@@ -63,23 +63,24 @@ class ContextController extends Controller
                         continue;
                     }
 
-                    if (isset($seen[$entry->id]) || !$elements->canView($entry)) {
+                    if (!$elements->canView($entry)) {
                         continue;
                     }
 
-                    $value = MapField::valueOn($entry, (string)$fieldUid);
+                    // A layout can hold the same field more than once, and each of those is drawn
+                    foreach (MapField::valuesOn($entry, (string)$fieldUid) as $handle => $value) {
+                        if ($value->getIsEmpty() || isset($seen["$entry->id:$handle"])) {
+                            continue;
+                        }
 
-                    if (!$value instanceof Shape || $value->getIsEmpty()) {
-                        continue;
+                        $seen["$entry->id:$handle"] = true;
+                        $features[] = $value->feature([
+                            'source' => $uid,
+                            'title' => $entry->title,
+                            'id' => $entry->id,
+                            'siteId' => $entry->siteId,
+                        ]);
                     }
-
-                    $seen[$entry->id] = true;
-                    $features[] = $value->feature([
-                        'source' => $uid,
-                        'title' => $entry->title,
-                        'id' => $entry->id,
-                        'siteId' => $entry->siteId,
-                    ]);
                 }
             }
         }

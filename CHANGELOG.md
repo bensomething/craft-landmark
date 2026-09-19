@@ -1,5 +1,11 @@
 # Release Notes for Landmark
 
+## Unreleased
+
+### Fixed
+
+- A layout holding the same field more than once, such as a fence and a boundary drawn on one entry, only ever drew the first of them. Each is drawn now.
+
 ## 0.2.1 - 2026-09-19
 
 ### Fixed
