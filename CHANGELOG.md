@@ -1,5 +1,11 @@
 # Release Notes for Landmark
 
+## 0.2.3 - 2026-09-19
+
+### Added
+
+- A Trace An Image setting, per field. A picture dropped on the map is held under the shapes to draw from, lined up by dragging its corners and sides, turned from just outside a corner, and leaned out of shape by holding Option on one. It fades, steps back and forward, and resets. The picture stays in the browser it was dropped in, against that field on that entry, and is never saved with the field.
+
 ## 0.2.2 - 2026-09-19
 
 ### Fixed
