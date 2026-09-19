@@ -42,41 +42,41 @@ class ContextController extends Controller
         $features = [];
 
         foreach ($uids as $uid) {
-            $found = MapField::sourceQuery((string)$uid, $uids);
+            [$fieldUid] = array_pad(explode(':', (string)$uid, 2), 2, null);
+            $seen = [];
 
-            if ($found === null) {
-                continue;
-            }
+            // A query for each handle the field goes by, as a layout can give it one of its own
+            foreach (MapField::sourceQueries((string)$uid, $uids) as $query) {
+                $query->limit($limit);
 
-            [$query, $handle] = $found;
-            $query->limit($limit);
-
-            if ($relationIds !== [] && $related !== []) {
-                // By id, since a handle can belong to more than one field across layouts
-                $query->relatedTo(['targetElement' => $related, 'field' => $relationIds]);
-            }
-
-            foreach ($query->all() as $entry) {
-                if (in_array($entry->id, $exclude, true) || in_array($entry->getCanonicalId(), $exclude, true)) {
-                    continue;
+                if ($relationIds !== [] && $related !== []) {
+                    // By id, since a handle can belong to more than one field across layouts
+                    $query->relatedTo(['targetElement' => $related, 'field' => $relationIds]);
                 }
 
-                if (!$elements->canView($entry)) {
-                    continue;
+                foreach ($query->all() as $entry) {
+                    if (in_array($entry->id, $exclude, true) || in_array($entry->getCanonicalId(), $exclude, true)) {
+                        continue;
+                    }
+
+                    if (isset($seen[$entry->id]) || !$elements->canView($entry)) {
+                        continue;
+                    }
+
+                    $value = MapField::valueOn($entry, (string)$fieldUid);
+
+                    if (!$value instanceof Shape || $value->getIsEmpty()) {
+                        continue;
+                    }
+
+                    $seen[$entry->id] = true;
+                    $features[] = $value->feature([
+                        'source' => $uid,
+                        'title' => $entry->title,
+                        'id' => $entry->id,
+                        'siteId' => $entry->siteId,
+                    ]);
                 }
-
-                $value = $entry->getFieldValue($handle);
-
-                if (!$value instanceof Shape || $value->getIsEmpty()) {
-                    continue;
-                }
-
-                $features[] = $value->feature([
-                    'source' => $uid,
-                    'title' => $entry->title,
-                    'id' => $entry->id,
-                    'siteId' => $entry->siteId,
-                ]);
             }
         }
 

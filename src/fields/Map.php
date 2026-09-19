@@ -127,46 +127,86 @@ class Map extends Field
     }
 
     /**
-     * The entries with shapes for one source, and the handle to read them by. A whole field leaves
-     * out the sections that have a source of their own, so no shape is drawn twice.
+     * Every handle a field goes by, since a layout can give it one of its own. An entry only
+     * answers to the handle its own layout uses.
+     *
+     * @return string[]
+     */
+    public static function handlesFor(string $fieldUid, string $fallback): array
+    {
+        $handles = [$fallback];
+
+        foreach (Craft::$app->getEntries()->getAllEntryTypes() as $entryType) {
+            foreach ($entryType->getFieldLayout()?->getCustomFields() ?? [] as $layoutField) {
+                if ($layoutField->uid === $fieldUid) {
+                    $handles[] = $layoutField->handle;
+                }
+            }
+        }
+
+        return array_values(array_unique($handles));
+    }
+
+    /** What a field holds on one entry, read by the handle that entry's own layout gives it. */
+    public static function valueOn(ElementInterface $element, string $fieldUid): ?Shape
+    {
+        foreach ($element->getFieldLayout()?->getCustomFields() ?? [] as $layoutField) {
+            if ($layoutField->uid === $fieldUid) {
+                $value = $element->getFieldValue($layoutField->handle);
+
+                return $value instanceof Shape ? $value : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The entries with shapes for one source, a query for each handle the field goes by. A whole
+     * field leaves out the sections that have a source of their own, so no shape is drawn twice.
      *
      * @param string[] $sources every source being drawn
-     * @return array{0: EntryQuery, 1: string}|null
+     * @return array<int, EntryQuery>
      */
-    public static function sourceQuery(string $source, array $sources): ?array
+    public static function sourceQueries(string $source, array $sources): array
     {
         [$fieldUid, $sectionUid] = array_pad(explode(':', $source, 2), 2, null);
         $field = Craft::$app->getFields()->getFieldByUid($fieldUid);
 
         if (!$field instanceof self) {
-            return null;
+            return [];
         }
 
-        $handle = $field->handle;
-        $query = Entry::find()->status('live')->$handle(':notempty:');
         $sections = Craft::$app->getEntries();
-
-        if ($sectionUid !== null) {
-            $section = $sections->getSectionByUid($sectionUid);
-
-            return $section !== null ? [$query->andWhere(self::inSections([$section->id])), $handle] : null;
-        }
-
         $split = [];
 
-        foreach ($sources as $other) {
-            [$otherField, $otherSection] = array_pad(explode(':', (string)$other, 2), 2, null);
+        if ($sectionUid === null) {
+            foreach ($sources as $other) {
+                [$otherField, $otherSection] = array_pad(explode(':', (string)$other, 2), 2, null);
 
-            if ($otherField === $fieldUid && $otherSection !== null && ($section = $sections->getSectionByUid($otherSection))) {
-                $split[] = $section->id;
+                if ($otherField === $fieldUid && $otherSection !== null && ($section = $sections->getSectionByUid($otherSection))) {
+                    $split[] = $section->id;
+                }
             }
+        } elseif (($section = $sections->getSectionByUid($sectionUid)) === null) {
+            return [];
         }
 
-        if ($split !== []) {
-            $query->andWhere(['not', self::inSections($split)]);
+        $queries = [];
+
+        foreach (self::handlesFor((string)$fieldUid, $field->handle) as $handle) {
+            $query = Entry::find()->status('live')->$handle(':notempty:');
+
+            if ($sectionUid !== null) {
+                $query->andWhere(self::inSections([$section->id]));
+            } elseif ($split !== []) {
+                $query->andWhere(['not', self::inSections($split)]);
+            }
+
+            $queries[] = $query;
         }
 
-        return [$query, $handle];
+        return $queries;
     }
 
     /**
