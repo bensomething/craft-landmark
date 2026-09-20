@@ -307,11 +307,11 @@
             // The panes here are all of a level, so it is their order that decides, and a new one
             // would otherwise be added last of all.
             if (!this.map.getPane('tracing')) {
-                const pane = this.map.createPane('tracing');
                 const panes = this.map.getPanes();
 
-                pane.style.zIndex = 350;
-                panes.mapPane.insertBefore(pane, panes.overlayPane);
+                // No z-index of its own: one would lift it back out of the flattened stack,
+                // over the shapes it is meant to sit under
+                panes.mapPane.insertBefore(this.map.createPane('tracing'), panes.overlayPane);
             }
 
             // Only the warping is the library's: the handles and what a drag does are this field's,
