@@ -1,5 +1,11 @@
 # Release Notes for Landmark
 
+## 0.3.1 - 2026-09-20
+
+### Fixed
+
+- A traced picture covered the shapes being drawn over it, rather than sitting under them to be drawn from.
+
 ## 0.3.0 - 2026-09-20
 
 ### Changed
