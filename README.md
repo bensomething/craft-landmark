@@ -84,7 +84,7 @@ With **Tracing** on, a picture is lined up once on the **Map** page and then dra
 
 The slider fades it, **Reset** puts it back as it arrived, and **Undo** and **Redo**, or Cmd-Z and Shift-Cmd-Z, step through where it has been. Untick Edit and the picture stops taking the mouse, leaving the drawing tools the map.
 
-A picture belongs to the entry the map is filtered by, so lining one up against a year shows it on every field map for that year, underneath the shapes and behind a slider to fade it. It can't be moved or replaced there, only traced.
+There is one picture, whatever the map is filtered by, so lining it up once is enough. Every field map then offers a **Picture** checkbox in its corner, off until it's asked for, which puts the picture under that field's shapes exactly as it was lined up. It can't be moved or replaced there, only drawn over, and none of the tracing code is fetched until the box is ticked.
 
 A picture is kept in the browser it was dropped in. It is never saved with a field, never uploaded, and never seen by anyone else: it is a way of working, not part of the entry.
 

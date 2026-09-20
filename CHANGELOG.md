@@ -1,6 +1,6 @@
 # Release Notes for Landmark
 
-## 0.3.0 - 2026-09-19
+## 0.3.0 - 2026-09-20
 
 ### Changed
 
